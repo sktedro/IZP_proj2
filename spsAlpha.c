@@ -121,29 +121,32 @@ bool shiftAndInsert(long *tabSize, char *tabStr, int startPoint, int strSize, ch
   return true;
 }
 
-int addCols(long *tabSize, char *tabStr, char *del){
+int addCols(long *tabSize, char **tabStr, char *del){
   int maxCols = 0, cols = 0;
-  for(int i = 0; tabStr[i]; i++){
-    if(tabStr[i] == del[0])
+  for(int i = 0; tabStr[0][i]; i++){
+    if(tabStr[0][i] == del[0])
       cols++;
-    else if(tabStr[i] == '\n'){
+    else if(tabStr[0][i] == '\n'){
       if(cols > maxCols)
         maxCols = cols;
       cols = 0;
     }
   }
-  for(int i = 0; tabStr[i]; i++){
-    if(tabStr[i] == del[0])
+  for(int i = 0; tabStr[0][i]; i++){
+    if(tabStr[0][i] == del[0])
       cols++;
-    else if(tabStr[i] == '\n'){
+    else if(tabStr[0][i] == '\n'){
       if(maxCols - cols > 0){
         int colDiff = maxCols - cols;
         *tabSize += colDiff;
-        tabStr = realloc(tabStr, *tabSize + 1);
-        if(!tabStr)
+        char *p = realloc(*tabStr, *tabSize + 1);
+        if(!p){
+          free(*tabStr);
           return -4;
+        }
+        *tabStr = p;
         char delToInsert[2] = {del[0], '\0'};
-        if(!shiftAndInsert(tabSize, tabStr, i, colDiff, delToInsert))
+        if(!shiftAndInsert(tabSize, tabStr[0], i, colDiff, delToInsert))
           return -5;
         i += colDiff;
       }
@@ -155,7 +158,8 @@ int addCols(long *tabSize, char *tabStr, char *del){
 
 int execCmds(char *argv[], int cmdPlc, long *tabSize, char *tabStr, char *del){
   (void) tabSize; (void) tabStr; (void) del;
-  char *selCmd, *cmd, *cmdDel = ";";
+  char *selCmd = 0;
+  char *cmd, *cmdDel = ";";
   cmd = strtok(argv[cmdPlc], cmdDel);
   while(cmd){
     if(cmd[0] == '[' && cmd[1] != 's'){
@@ -182,7 +186,7 @@ int main(int argc, char *argv[]){
     return errFn(-4);
 
   changeDels(tabStr, del);
-  errCode = addCols(&tabSize, tabStr, del);
+  errCode = addCols(&tabSize, &tabStr, del);
   if(errCode)
     return errFn(errCode);
 
@@ -190,6 +194,7 @@ int main(int argc, char *argv[]){
 
   printf("%s", tabStr);
 
+  free(tabStr);
   return 0;
 }
 
