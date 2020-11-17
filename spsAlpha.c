@@ -69,6 +69,12 @@ char *getDel(char *argv[]){
   return " ";
 }
 
+int getCmdPlc(char *argv[]){
+  if(!strcmp(argv[1], "-d"))
+    return 3;
+  return 1;
+}
+
 char *getTab(char *argv[], long *tabSize){
   FILE *tab = fopen(argv[!strcmp(argv[1], "-d") ? 4 : 2], "r");
   //If there are delimiters entered, filename will be as the 4th argument
@@ -94,9 +100,8 @@ void changeDels(char *tabStr, char *del){
           tabStr[i] = del[0];
 }
 
-void addCols(long *tabSize, char *tabStr, char *del){
-  int maxCols = 0;
-  int cols = 0;
+bool addCols(long *tabSize, char *tabStr, char *del){
+  int maxCols = 0, cols = 0;
   for(int i = 0; tabStr[i]; i++){
     if(tabStr[i] == del[0])
       cols++;
@@ -114,8 +119,8 @@ void addCols(long *tabSize, char *tabStr, char *del){
         int colDiff = maxCols - cols;
         *tabSize += colDiff;
         tabStr = realloc(tabStr, *tabSize + 1);
-        //if(!tabStr)
-          //return;
+        if(!tabStr)
+          return false;
         for(int j = *tabSize; j > (i + colDiff); j--)
           tabStr[j] = tabStr[j - colDiff];
         for(int j = 0; j < colDiff; j++){
@@ -127,6 +132,21 @@ void addCols(long *tabSize, char *tabStr, char *del){
       cols = 0;
     }
   }
+  return true;
+}
+
+int execCmds(char *argv[], int cmdPlc, long *tabSize, char *tabStr, char *del){
+  (void) tabSize; (void) tabStr; (void) del;
+  //int i = 0;
+  //while(argv[cmdPlc][i++]){}
+  char *cmd, *cmdDel = ";";
+  do{
+    cmd = strtok(argv[cmdPlc], cmdDel);
+    if(cmd[0] == "[" && cmd[1] != 's'){
+      //cell selection
+    }
+  }while(cmd);
+  return 0;
 }
 
 int main(int argc, char *argv[]){
@@ -134,6 +154,7 @@ int main(int argc, char *argv[]){
   errCode = checkArgs(argc, argv);
   if(errCode) return errCode;
   char *del = getDel(argv);
+  int cmdPlc = getCmdPlc(argv);
 
 
   long tabSize;
@@ -142,7 +163,10 @@ int main(int argc, char *argv[]){
     return errFn(-4);
 
   changeDels(tabStr, del);
-  addCols(&tabSize, tabStr, del);
+  if(!addCols(&tabSize, tabStr, del))
+    return errFn(-4);
+
+  errCode = execCmds(argv, cmdPlc, &tabSize, tabStr, del);
 
   printf("%s", tabStr);
 
