@@ -45,9 +45,6 @@ int errFn(int errCode){
     case -4:
       fprintf(stderr, "Sorry, memory allocation was unsuccessful.");
       break;
-    case -5:
-      fprintf(stderr, "Unknown error. Check your commands.");
-      break;
   }
   fprintf(stderr, " The program will now exit.\n");
   return -errCode;
@@ -103,25 +100,13 @@ void changeDels(char *tabStr, char *del){
           tabStr[i] = del[0];
 }
 
-bool shiftAndInsert(long *tabSize, char *tabStr, int startPoint, int strSize, char *str){
-  for(int j = *tabSize; j > (startPoint + strSize); j--){
-    tabStr[j] = tabStr[j - strSize];
-    tabStr[j - strSize] = '\0';
-  }
-  bool strSizeMatch = strSize == (int)strlen(str);
-  for(int j = 0; j < strSize; j++){
-    if(strSize != 1 && str[1] == '\0'){
-      tabStr[startPoint+j] = str[0];
-      tabStr[startPoint+j+1] = '\n';
-    }
-    else if(strSizeMatch)
-      tabStr[startPoint+j] = str[j];
-    else return false;
-  }
-  return true;
+int shiftChars(long *tabSize, char *tabStr, int startPoint, int shiftSize){
+  for(int j = *tabSize; j > (startPoint + shiftSize); j--)
+    tabStr[j] = tabStr[j - shiftSize];
+  return 0;
 }
 
-int addCols(long *tabSize, char *tabStr, char *del){
+bool addCols(long *tabSize, char *tabStr, char *del){
   int maxCols = 0, cols = 0;
   for(int i = 0; tabStr[i]; i++){
     if(tabStr[i] == del[0])
@@ -141,31 +126,31 @@ int addCols(long *tabSize, char *tabStr, char *del){
         *tabSize += colDiff;
         tabStr = realloc(tabStr, *tabSize + 1);
         if(!tabStr)
-          return -4;
-        char delToInsert[2] = {del[0], '\0'};
-        if(!shiftAndInsert(tabSize, tabStr, i, colDiff, delToInsert))
-          return -5;
+          return false;
+        shiftChars(tabSize, tabStr, i, colDiff);
+        for(int j = 0; j < colDiff; j++){
+          tabStr[i+j] = del[0];
+          tabStr[i+j+1] = '\n';
+        }
         i += colDiff;
       }
       cols = 0;
     }
   }
-  return 0;
+  return true;
 }
 
 int execCmds(char *argv[], int cmdPlc, long *tabSize, char *tabStr, char *del){
   (void) tabSize; (void) tabStr; (void) del;
-  char *selCmd, *cmd, *cmdDel = ";";
-  cmd = strtok(argv[cmdPlc], cmdDel);
-  while(cmd){
+  //int i = 0;
+  //while(argv[cmdPlc][i++]){}
+  char *cmd, *cmdDel = ";";
+  do{
+    cmd = strtok(argv[cmdPlc], cmdDel);
     if(cmd[0] == '[' && cmd[1] != 's'){
-      strcpy(selCmd, cmd);
       //cell selection
-      continue;
     }
-    cmd = strtok(NULL, cmdDel);
-    //executing the command
-  }
+  }while(cmd);
   return 0;
 }
 
@@ -176,19 +161,21 @@ int main(int argc, char *argv[]){
   char *del = getDel(argv);
   int cmdPlc = getCmdPlc(argv);
 
+
   long tabSize;
   char *tabStr = getTab(argv, &tabSize);
   if(!tabStr)
     return errFn(-4);
 
   changeDels(tabStr, del);
-  errCode = addCols(&tabSize, tabStr, del);
-  if(errCode)
-    return errFn(errCode);
+  if(!addCols(&tabSize, tabStr, del))
+    return errFn(-4);
 
-  errCode = execCmds(argv, cmdPlc, &tabSize, tabStr, del);
+  //errCode = execCmds(argv, cmdPlc, &tabSize, tabStr, del);
 
   printf("%s", tabStr);
+
+
 
   return 0;
 }
