@@ -85,25 +85,6 @@ int getCmdPlc(char *argv[]){
   return 1;
 }
 
-/*
-bool tabCtor(tab_t *tab){
-  tab->len = 0;
-  tab->row = NULL;
-}
-
-bool rowCtor(tab_t *tab, int i){
-  tab->row[i].len = 0;
-  tab->row[i].cell = NULL;
-  return true;
-}
-
-bool cellCtor(tab_t *tab, int i, int j){
-  tab->row[i].cell[j].cont = NULL;
-  tab->row[i].cell[j].len = 0;
-  return true;
-}
-*/
-
 bool firstMalloc(tab_t *tab){
   tab->row = malloc(sizeof(void*));
   if(!tab->row) return false;
@@ -144,7 +125,6 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         tab->row = p;
         tab->row[rowN-1].cell = malloc(cellN*sizeof(cell_t));
         tab->row[rowN-1].len = 0;
-        //continue;
       }else if(isDel(&tempC, del)){
         cellN++;
         skip = cellcN = 1;
@@ -218,60 +198,25 @@ int getMaxCols(tab_t *tab){
   return max;
 }
 
-int addCols(tab_t *tab){
+bool addCols(tab_t *tab){
   int maxCols = getMaxCols(tab);
   for(int i = 0; i < tab->len; i++){
     if(tab->row[i].len != maxCols){
       int diff = maxCols - tab->row[i].len;
       cell_t *p = realloc(tab->row[i].cell, maxCols*sizeof(cell_t));
-      if(!p) return -4;
+      if(!p) return false;
       tab->row[i].cell = p;
       tab->row[i].len = maxCols;
       for(int j = 0; j < diff; j++){
         tab->row[i].cell[maxCols-diff+j].cont = malloc(sizeof(void*));
-        if(!tab->row[i].cell[maxCols-diff+j].cont) return -4;
+        if(!tab->row[i].cell[maxCols-diff+j].cont) return false;
         tab->row[i].cell[maxCols-diff+j].cont[0] = '\0';
         tab->row[i].cell[maxCols-diff+j].len = 1;
       }
     }
   }
-  return 0;
+  return true;
 }
-
-/*int addCols(long *tabSize, char **tabStr, char *del){
-  int maxCols = 0, cols = 0;
-  for(int i = 0; tabStr[0][i]; i++){
-    if(tabStr[0][i] == del[0])
-      cols++;
-    else if(tabStr[0][i] == '\n'){
-      if(cols > maxCols)
-        maxCols = cols;
-      cols = 0;
-    }
-  }
-  for(int i = 0; tabStr[0][i]; i++){
-    if(tabStr[0][i] == del[0])
-      cols++;
-    else if(tabStr[0][i] == '\n'){
-      if(maxCols - cols > 0){
-        int colDiff = maxCols - cols;
-        *tabSize += colDiff;
-        char *p = realloc(*tabStr, *tabSize + 1);
-        if(!p){
-          free(*tabStr);
-          return -4;
-        }
-        *tabStr = p;
-        char delToInsert[2] = {del[0], '\0'};
-        if(!shiftAndInsert(tabSize, tabStr[0], i, colDiff, delToInsert))
-          return -5;
-        i += colDiff;
-      }
-      cols = 0;
-    }
-  }
-  return 0;
-}*/
 
 int execCmds(char *argv[], int cmdPlc, long *tabSize, char *tabStr, char *del){
   (void) tabSize; (void) tabStr; (void) del;
@@ -296,12 +241,9 @@ int main(int argc, char *argv[]){
   if(errCode) return errCode;
   char *del = getDel(argv);
   int cmdPlc = getCmdPlc(argv);
-
-  //long tabSize;
   tab_t tab;
-  if(!getTab(argv, &tab, del))
-    return errFn(-4);
-  addCols(&tab);
+  if(!getTab(argv, &tab, del)) return errFn(-4);
+  if(!addCols(&tab)) return errFn(-4);
   printTab(&tab, del);
   freeTab(&tab);
 
@@ -314,14 +256,3 @@ int main(int argc, char *argv[]){
   */
   return 0;
 }
-
-
-/*
-void changeDels(char *tabStr, char *del){
-  if(del[1])
-    for(int i = 0; tabStr[i]; i++)
-      for(int j = 1; del[j]; j++)
-        if(tabStr[i] == del[j])
-          tabStr[i] = del[0];
-}
-*/
