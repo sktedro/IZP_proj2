@@ -96,13 +96,13 @@ bool rowCtor(tab_t *tab, int i){
   tab->row[i].cell = NULL;
   return true;
 }
-*/
 
 bool cellCtor(tab_t *tab, int i, int j){
   tab->row[i].cell[j].cont = NULL;
   tab->row[i].cell[j].len = 0;
   return true;
 }
+*/
 
 bool firstMalloc(tab_t *tab){
   tab->row = malloc(sizeof(void*));
@@ -115,24 +115,20 @@ bool firstMalloc(tab_t *tab){
   return true;
 }
 
-/*char **/int getTab(char *argv[], tab_t *tab, char *del){
+bool isDel(char *c, char *del){
+  for(int i = 0; del[i]; i++)
+    if(*c == del[i])
+      return true;
+  return false;
+}
+
+bool getTab(char *argv[], tab_t *tab, char *del){
   FILE *tabFile = fopen(argv[!strcmp(argv[1], "-d") ? 4 : 2], "r");
   //If there are delimiters entered, filename will be as the 4th argument
   int rowN = 1, cellN = 1, cellcN = 1;
   char tempC;
   bool quoted = false, makeQuoted = false;
-  /*
-  tab = malloc(sizeof(void*) + sizeof(int));
-  if(!tab) return 4;
-  tab->row = malloc(rowN*sizeof(void*) + cellN*sizeof(int));
-  if(!tab->row) return 4;
-  tab->row[0].cell = malloc(cellN*sizeof(void*) + cellN*sizeof(int));
-  if(!tab->row[0].cell) return 4;
-  tab->row[0].cell[0].cont = malloc(cellcN*sizeof(char*));
-  if(!tab->row[0].cell[0].cont) return 4;
-  */
-  if(!firstMalloc(tab)) return 4;
-
+  if(!firstMalloc(tab)) return false;
   for(int i = 0; tempC != EOF; i++){
     bool skip = false;
     tempC = fgetc(tabFile);
@@ -141,39 +137,28 @@ bool firstMalloc(tab_t *tab){
       //if(tempC == backslash)
         //makeQuoted = true;
       if(tempC == '\n'){
-        skip = true;
         rowN++;
-        cellN = 1;
-        cellcN = 1;
-        row_t *p = realloc(tab->row, rowN*sizeof(row_t) + sizeof(int));
-        if(!p) return 4;
+        skip = cellN = cellcN = 1;
+        row_t *p = realloc(tab->row, rowN*sizeof(row_t));
+        if(!p) return false;
         tab->row = p;
-        tab->row[rowN-1].cell = malloc(cellN*sizeof(cell_t) + cellN*sizeof(int));
+        tab->row[rowN-1].cell = malloc(cellN*sizeof(cell_t));
         tab->row[rowN-1].len = 0;
-        continue;
-      }
-      else{
-        for(int j = 0; del[j]; j++){
-          if(tempC == del[j]){
-            skip = true;
-            cellcN = 1;
-            cellN++;
-            cell_t *p = realloc(tab->row[rowN-1].cell, cellN*sizeof(cell_t) + cellN*sizeof(int));
-            if(!p) return 4;
-            tab->row[rowN-1].cell = p;
-            break;
-          }
-        }
+        //continue;
+      }else if(isDel(&tempC, del)){
+        cellN++;
+        skip = cellcN = 1;
+        cell_t *p = realloc(tab->row[rowN-1].cell, cellN*sizeof(cell_t));
+        if(!p) return false;
+        tab->row[rowN-1].cell = p;
       }
     }
     if(!skip){
-      if(cellcN == 1){
+      if(cellcN == 1)
         tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(char*));
-        //tab->row[rowN-1].cell[cellN-1].cont[0] = '\0';
-      }
       cellcN++;
       char *p = realloc(tab->row[rowN-1].cell[cellN-1].cont, (cellcN)*sizeof(char*));
-      if(!p) return 4;
+      if(!p) return false;
       tab->row[rowN-1].cell[cellN-1].cont = p;
       tab->row[rowN-1].cell[cellN-1].cont[cellcN-2] = tempC;
       tab->row[rowN-1].cell[cellN-1].cont[cellcN-1] = '\0';
@@ -183,7 +168,7 @@ bool firstMalloc(tab_t *tab){
     tab->row[rowN-1].cell[cellN-1].len = cellcN-1;
   }
   fclose(tabFile);
-  return 0;
+  return true;
 }
 
 void freeTab(tab_t *tab){
@@ -207,16 +192,6 @@ void printTab(tab_t *tab, char *del){
   }
 }
 
-/*
-void changeDels(char *tabStr, char *del){
-  if(del[1])
-    for(int i = 0; tabStr[i]; i++)
-      for(int j = 1; del[j]; j++)
-        if(tabStr[i] == del[j])
-          tabStr[i] = del[0];
-}
-*/
-
 bool shiftAndInsert(long *tabSize, char *tabStr, int startPoint, int strSize, char *str){
   for(int j = *tabSize; j > (startPoint + strSize); j--){
     tabStr[j] = tabStr[j - strSize];
@@ -235,7 +210,35 @@ bool shiftAndInsert(long *tabSize, char *tabStr, int startPoint, int strSize, ch
   return true;
 }
 
-int addCols(long *tabSize, char **tabStr, char *del){
+int getMaxCols(tab_t *tab){
+  int max = 0;
+  for(int i = 0; i < tab->len; i++)
+    if(tab->row[i].len > max)
+      max = tab->row[i].len;
+  return max;
+}
+
+int addCols(tab_t *tab){
+  int maxCols = getMaxCols(tab);
+  for(int i = 0; i < tab->len; i++){
+    if(tab->row[i].len != maxCols){
+      int diff = maxCols - tab->row[i].len;
+      cell_t *p = realloc(tab->row[i].cell, maxCols*sizeof(cell_t));
+      if(!p) return -4;
+      tab->row[i].cell = p;
+      tab->row[i].len = maxCols;
+      for(int j = 0; j < diff; j++){
+        tab->row[i].cell[maxCols-diff+j].cont = malloc(sizeof(void*));
+        if(!tab->row[i].cell[maxCols-diff+j].cont) return -4;
+        tab->row[i].cell[maxCols-diff+j].cont[0] = '\0';
+        tab->row[i].cell[maxCols-diff+j].len = 1;
+      }
+    }
+  }
+  return 0;
+}
+
+/*int addCols(long *tabSize, char **tabStr, char *del){
   int maxCols = 0, cols = 0;
   for(int i = 0; tabStr[0][i]; i++){
     if(tabStr[0][i] == del[0])
@@ -268,7 +271,7 @@ int addCols(long *tabSize, char **tabStr, char *del){
     }
   }
   return 0;
-}
+}*/
 
 int execCmds(char *argv[], int cmdPlc, long *tabSize, char *tabStr, char *del){
   (void) tabSize; (void) tabStr; (void) del;
@@ -296,24 +299,29 @@ int main(int argc, char *argv[]){
 
   //long tabSize;
   tab_t tab;
-  getTab(argv, &tab, del);
+  if(!getTab(argv, &tab, del))
+    return errFn(-4);
+  addCols(&tab);
   printTab(&tab, del);
   freeTab(&tab);
-  /*char *tabStr = getTab(argv, &tabSize);
-  if(!tabStr)
-    return errFn(-4);
-    */
 
-  /*changeDels(tabStr, del);
+  /*
   errCode = addCols(&tabSize, &tabStr, del);
   if(errCode)
     return errFn(errCode);
 
   errCode = execCmds(argv, cmdPlc, &tabSize, tabStr, del);
   */
-  //printf("%s", tabStr);
-
-  //free(tabStr);
   return 0;
 }
 
+
+/*
+void changeDels(char *tabStr, char *del){
+  if(del[1])
+    for(int i = 0; tabStr[i]; i++)
+      for(int j = 1; del[j]; j++)
+        if(tabStr[i] == del[j])
+          tabStr[i] = del[0];
+}
+*/
