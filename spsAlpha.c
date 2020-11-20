@@ -119,7 +119,8 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         //makeQuoted = true;
       if(tempC == '\n'){
         rowN++;
-        skip = cellN = cellcN = 1;
+        skip = true;
+        cellN = cellcN = 1;
         row_t *p = realloc(tab->row, rowN*sizeof(row_t));
         if(!p) return false;
         tab->row = p;
@@ -127,7 +128,8 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         tab->row[rowN-1].len = 0;
       }else if(isDel(&tempC, del)){
         cellN++;
-        skip = cellcN = 1;
+        skip = true;
+        cellcN = 1;
         cell_t *p = realloc(tab->row[rowN-1].cell, cellN*sizeof(cell_t));
         if(!p) return false;
         tab->row[rowN-1].cell = p;
@@ -235,6 +237,11 @@ int execCmds(char *argv[], int cmdPlc, long *tabSize, char *tabStr, char *del){
   return 0;
 }
 
+int freeAndErr(tab_t *tab, int errCode){
+  freeTab(tab);
+  return errFn(errCode);
+}
+
 int main(int argc, char *argv[]){
   int errCode;
   errCode = checkArgs(argc, argv);
@@ -242,8 +249,8 @@ int main(int argc, char *argv[]){
   char *del = getDel(argv);
   int cmdPlc = getCmdPlc(argv);
   tab_t tab;
-  if(!getTab(argv, &tab, del)) return errFn(-4);
-  if(!addCols(&tab)) return errFn(-4);
+  if(!getTab(argv, &tab, del)) return freeAndErr(&tab, -4);
+  if(!addCols(&tab)) return freeAndErr(&tab, -4);
   printTab(&tab, del);
   freeTab(&tab);
 
