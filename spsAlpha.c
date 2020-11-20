@@ -3,18 +3,25 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define backslash 92
+
 enum cmds{irow, arow, drow, icol, acol, dcol, set, clear, swap, sum, avg, count, len/*, def, use, inc, set*/};
 
 typedef struct{
-  int row;
-  int col;
-  char* content;
+  char *cont;
   int len;
 } cell_t;
 
 typedef struct{
-  int row;
+  cell_t *cell;
+  int len;
 } row_t;
+
+typedef struct{
+  row_t *row;
+  int len;
+} tab_t;
+
 
 typedef struct{
   int row1;
@@ -78,23 +85,129 @@ int getCmdPlc(char *argv[]){
   return 1;
 }
 
-char *getTab(char *argv[], long *tabSize){
-  FILE *tab = fopen(argv[!strcmp(argv[1], "-d") ? 4 : 2], "r");
-  //If there are delimiters entered, filename will be as the 4th argument
-  fseek(tab, 0, SEEK_END);
-  *tabSize = ftell(tab);
-  fseek(tab, 0, SEEK_SET);
-  char *tabStr = malloc(*tabSize + 1);
-  if(!tabStr){
-    fclose(tab);
-    return NULL;
-  }
-  fread(tabStr, 1, *tabSize, tab);
-  tabStr[*tabSize] = 0;
-  fclose(tab);
-  return tabStr;
+/*
+bool tabCtor(tab_t *tab){
+  tab->len = 0;
+  tab->row = NULL;
 }
 
+bool rowCtor(tab_t *tab, int i){
+  tab->row[i].len = 0;
+  tab->row[i].cell = NULL;
+  return true;
+}
+*/
+
+bool cellCtor(tab_t *tab, int i, int j){
+  tab->row[i].cell[j].cont = NULL;
+  tab->row[i].cell[j].len = 0;
+  return true;
+}
+
+bool firstMalloc(tab_t *tab){
+  tab->row = malloc(sizeof(void*));
+  if(!tab->row) return false;
+  tab->row[0].cell = malloc(sizeof(void*));
+  if(!tab->row[0].cell) return false;
+  tab->row[0].cell[0].cont = malloc(sizeof(void*));
+  if(!tab->row[0].cell[0].cont) return false;
+  tab->len = tab->row[0].len = tab->row[0].cell[0].len = 0;
+  return true;
+}
+
+/*char **/int getTab(char *argv[], tab_t *tab, char *del){
+  FILE *tabFile = fopen(argv[!strcmp(argv[1], "-d") ? 4 : 2], "r");
+  //If there are delimiters entered, filename will be as the 4th argument
+  int rowN = 1, cellN = 1, cellcN = 1;
+  char tempC;
+  bool quoted = false, makeQuoted = false;
+  /*
+  tab = malloc(sizeof(void*) + sizeof(int));
+  if(!tab) return 4;
+  tab->row = malloc(rowN*sizeof(void*) + cellN*sizeof(int));
+  if(!tab->row) return 4;
+  tab->row[0].cell = malloc(cellN*sizeof(void*) + cellN*sizeof(int));
+  if(!tab->row[0].cell) return 4;
+  tab->row[0].cell[0].cont = malloc(cellcN*sizeof(char*));
+  if(!tab->row[0].cell[0].cont) return 4;
+  */
+  if(!firstMalloc(tab)) return 4;
+
+  for(int i = 0; tempC != EOF; i++){
+    bool skip = false;
+    tempC = fgetc(tabFile);
+    if(tempC == '"') quoted = quoted ? false : true;
+    if(!quoted){
+      //if(tempC == backslash)
+        //makeQuoted = true;
+      if(tempC == '\n'){
+        skip = true;
+        rowN++;
+        cellN = 1;
+        cellcN = 1;
+        row_t *p = realloc(tab->row, rowN*sizeof(row_t) + sizeof(int));
+        if(!p) return 4;
+        tab->row = p;
+        tab->row[rowN-1].cell = malloc(cellN*sizeof(cell_t) + cellN*sizeof(int));
+        tab->row[rowN-1].len = 0;
+        continue;
+      }
+      else{
+        for(int j = 0; del[j]; j++){
+          if(tempC == del[j]){
+            skip = true;
+            cellcN = 1;
+            cellN++;
+            cell_t *p = realloc(tab->row[rowN-1].cell, cellN*sizeof(cell_t) + cellN*sizeof(int));
+            if(!p) return 4;
+            tab->row[rowN-1].cell = p;
+            break;
+          }
+        }
+      }
+    }
+    if(!skip){
+      if(cellcN == 1){
+        tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(char*));
+        //tab->row[rowN-1].cell[cellN-1].cont[0] = '\0';
+      }
+      cellcN++;
+      char *p = realloc(tab->row[rowN-1].cell[cellN-1].cont, (cellcN)*sizeof(char*));
+      if(!p) return 4;
+      tab->row[rowN-1].cell[cellN-1].cont = p;
+      tab->row[rowN-1].cell[cellN-1].cont[cellcN-2] = tempC;
+      tab->row[rowN-1].cell[cellN-1].cont[cellcN-1] = '\0';
+    }
+    tab->len = rowN;
+    tab->row[rowN-1].len = cellN;
+    tab->row[rowN-1].cell[cellN-1].len = cellcN-1;
+  }
+  fclose(tabFile);
+  return 0;
+}
+
+void freeTab(tab_t *tab){
+  for(int i = 0; i < tab->len; i++){
+    for(int j = 0; j < tab->row[i].len; j++)
+      free(tab->row[i].cell[j].cont);
+    free(tab->row[i].cell);
+  }
+  free(tab->row);
+}
+
+void printTab(tab_t *tab, char *del){
+  for(int i = 0; i+2 < tab->len; i++){
+    for(int j = 0; j < tab->row[i].len; j++){
+      for(int k = 0; k < tab->row[i].cell[j].len; k++)
+        printf("%c", tab->row[i].cell[j].cont[k]);
+      if(j+1 != tab->row[i].len)
+        printf("%c", del[0]);
+    }
+    printf("\n");
+  }
+}
+
+/*
 void changeDels(char *tabStr, char *del){
   if(del[1])
     for(int i = 0; tabStr[i]; i++)
@@ -102,6 +215,7 @@ void changeDels(char *tabStr, char *del){
         if(tabStr[i] == del[j])
           tabStr[i] = del[0];
 }
+*/
 
 bool shiftAndInsert(long *tabSize, char *tabStr, int startPoint, int strSize, char *str){
   for(int j = *tabSize; j > (startPoint + strSize); j--){
@@ -180,21 +294,26 @@ int main(int argc, char *argv[]){
   char *del = getDel(argv);
   int cmdPlc = getCmdPlc(argv);
 
-  long tabSize;
-  char *tabStr = getTab(argv, &tabSize);
+  //long tabSize;
+  tab_t tab;
+  getTab(argv, &tab, del);
+  printTab(&tab, del);
+  freeTab(&tab);
+  /*char *tabStr = getTab(argv, &tabSize);
   if(!tabStr)
     return errFn(-4);
+    */
 
-  changeDels(tabStr, del);
+  /*changeDels(tabStr, del);
   errCode = addCols(&tabSize, &tabStr, del);
   if(errCode)
     return errFn(errCode);
 
   errCode = execCmds(argv, cmdPlc, &tabSize, tabStr, del);
+  */
+  //printf("%s", tabStr);
 
-  printf("%s", tabStr);
-
-  free(tabStr);
+  //free(tabStr);
   return 0;
 }
 
