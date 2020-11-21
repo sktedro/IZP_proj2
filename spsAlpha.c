@@ -31,10 +31,11 @@ typedef struct{
 } cellSel_t;
 
 typedef struct{
+  cellSel_t tempSel[10];
 } tempSel_t;
 
 typedef struct{
-  cellSel_t cmdCellSel;
+  cellSel_t cmdSel;
   enum cmds cmd;
 } cmd_t;
 
@@ -127,7 +128,6 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         tab->row[rowN-1].cell = malloc(cellN*sizeof(cell_t));
         tab->row[rowN-1].len = 0;
         tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(void*));
-        //tab->row[rowN-1].cell[cellN-1].cont[0] = '\0';
       }else if(isDel(&tempC, del)){
         cellN++;
         skip = true;
@@ -136,7 +136,6 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         if(!p) return false;
         tab->row[rowN-1].cell = p;
         tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(void*));
-        //tab->row[rowN-1].cell[cellN-1].cont[0] = '\0';
       }
     }
     if(!skip){
@@ -163,14 +162,6 @@ void freeTab(tab_t *tab){
     free(tab->row[i].cell);
   }
   free(tab->row);
-
-
-  /*
-  tab->row = malloc(sizeof(void*));
-  tab->row[0].cell = malloc(sizeof(void*));
-  tab->row[0].cell[0].cont = malloc(sizeof(void*));
-  tab->len = tab->row[0].len = tab->row[0].cell[0].len = 0;
-  */
 }
 
 void printTab(tab_t *tab, char *del){
@@ -183,24 +174,6 @@ void printTab(tab_t *tab, char *del){
     }
     printf("\n");
   }
-}
-
-bool shiftAndInsert(long *tabSize, char *tabStr, int startPoint, int strSize, char *str){
-  for(int j = *tabSize; j > (startPoint + strSize); j--){
-    tabStr[j] = tabStr[j - strSize];
-    tabStr[j - strSize] = '\0';
-  }
-  bool strSizeMatch = strSize == (int)strlen(str);
-  for(int j = 0; j < strSize; j++){
-    if(strSize != 1 && str[1] == '\0'){
-      tabStr[startPoint+j] = str[0];
-      tabStr[startPoint+j+1] = '\n';
-    }
-    else if(strSizeMatch)
-      tabStr[startPoint+j] = str[j];
-    else return false;
-  }
-  return true;
 }
 
 int getMaxCols(tab_t *tab){
@@ -231,17 +204,87 @@ bool addCols(tab_t *tab){
   return true;
 }
 
+int getCellSelArg(char *cmd, int argNum){
+  char *selArg = malloc(sizeof(char));
+  if(!selArg) return -4;
+  int i = 1, j = 1, k = 1;
+  while(j != argNum){
+    //if(cmd[i] == ']')
+      //return -2;
+    if(cmd[i] == ',')
+      j++;
+    i++;
+  }
+  while(cmd[i] != ',' && cmd[i] != ']'){
+    char *p = realloc(selArg, (k+1)*sizeof(char));
+    if(!p){ 
+      free(selArg);
+      return -4;
+    }
+    selArg[k-1] = cmd[i];
+    selArg[k] = '\0';
+    i++;
+    k++;
+  }
+  char *tolptr = NULL;
+  int arg = strtol(selArg, &tolptr, 10);
+  if(!strcmp(selArg, "_")){
+    free(selArg);
+    return 0; //Whole row/column was selected
+  }
+  free(selArg);
+  if(*tolptr)
+    return -1;
+  return arg;
+}
+
+int isCellSel(char *cmd, cellSel_t *cellSel){
+  if(cmd[0] != '[' || cmd[1] == 'f' || cmd[1] == 'm')
+    return 0; //Not a selection command
+  if(cmd[1] == 's'){
+    //TODO working with tempSels
+    return 1;
+  }
+  int args = 1;
+  for(int i = 0; cmd[i] != ']'; i++)
+    if(cmd[i] == ',')
+      args++;
+  if(args != 2 && args != 4)
+    return -6;
+  int argsArr[4];
+  for(int i = 0; i < args; i++){
+    argsArr[i] = getCellSelArg(cmd, i+1);
+    if(argsArr[i] == -4) return -4;
+    if(argsArr[i] == -1) return 0; //Argument is not a number and neither '_'
+  }
+  cellSel->row1 = argsArr[0];
+  cellSel->col1 = argsArr[1];
+  printf("%d, %d; ", argsArr[0], argsArr[1]); 
+  if(args == 4){
+    cellSel->row2 = argsArr[2];
+    cellSel->col2 = argsArr[3];
+    printf("%d, %d", argsArr[2], argsArr[3]); 
+  }
+  printf("\n");
+
+  return 1;
+}
+
 int execCmds(char *argv[], int cmdPlc, tab_t *tab){
   (void) tab;
-  char *selCmd = 0;
+  //char *selCmd = 0;
   char *cmd, *cmdDel = ";";
   cmd = strtok(argv[cmdPlc], cmdDel);
+  cellSel_t cellSel = {1, 1, -1, -1};
   while(cmd){
-    if(cmd[0] == '[' && cmd[1] != 's'){
-      strcpy(selCmd, cmd);
-      //cell selection
-      continue;
+    int isCellSelRet = isCellSel(cmd, &cellSel);
+    if(isCellSelRet < 0)
+      return isCellSelRet; //Err
+    else if(isCellSelRet > 0){
+      cmd = strtok(NULL, cmdDel);
+      continue; //The command is a selection command
     }
+    //get command
     cmd = strtok(NULL, cmdDel);
     //executing the command
   }
@@ -263,18 +306,10 @@ int main(int argc, char *argv[]){
   if(!getTab(argv, &tab, del)) return freeAndErr(&tab, -4);
   if(!addCols(&tab)) return freeAndErr(&tab, -4);
   errCode = execCmds(argv, cmdPlc, &tab);
-  if(errCode)
-    return freeAndErr(&tab, errCode);
+  if(errCode) return freeAndErr(&tab, errCode);
 
   printTab(&tab, del);
   freeTab(&tab);
 
-  /*
-  errCode = addCols(&tabSize, &tabStr, del);
-  if(errCode)
-    return errFn(errCode);
-
-  errCode = execCmds(argv, cmdPlc, &tabSize, tabStr, del);
-  */
   return 0;
 }
