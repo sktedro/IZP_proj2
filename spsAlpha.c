@@ -259,34 +259,74 @@ int isCellSel(char *cmd, cellSel_t *cellSel){
   }
   cellSel->row1 = argsArr[0];
   cellSel->col1 = argsArr[1];
-  printf("%d, %d; ", argsArr[0], argsArr[1]); 
+  //printf("%d, %d; ", argsArr[0], argsArr[1]); 
   if(args == 4){
     cellSel->row2 = argsArr[2];
     cellSel->col2 = argsArr[3];
-    printf("%d, %d", argsArr[2], argsArr[3]); 
+    //printf("%d, %d", argsArr[2], argsArr[3]); 
   }
-  printf("\n");
+  //printf("\n");
 
   return 1;
 }
 
+bool isEscaped(char *str, int charPlc){
+  int i = 0;
+  //TODO PRECO  TO KURVA NEFUNGUJE? Program si mysli, ze je zadanych menej
+  //backslashov, ako actually zadanych je... Napr zadam 6, program vidi ?3?
+  while((charPlc - i) > 0 && str[charPlc - i - 1] == backslash){
+    i++;
+    //printf("<%d>\n", i);
+  }
+  if(i % 2)
+    return true;
+  return false;
+}
+
+char *getCmd(char *argv[], int cmdPlc, int cmdNum){
+  int actCmdNum = 1;
+  int i = 0;
+  while(argv[cmdPlc][i]){
+    bool isQuoted = false;
+    bool isProperDelim = false;
+    if(argv[cmdPlc][i] == '"' && !isEscaped(argv[cmdPlc], i))
+      isQuoted = isQuoted ? false : true;
+    //else if(argv[cmdPlc][i] == ';' && !isQuoted){
+    else if(argv[cmdPlc][i] == ';' && !isQuoted && !isEscaped(argv[cmdPlc], i))
+      isProperDelim = true;
+    //TODO alebo to staci??
+    if(isProperDelim)
+      actCmdNum++;
+    if(cmdNum == 1)
+      return &argv[cmdPlc][0];
+    if(actCmdNum == cmdNum)
+      return &argv[cmdPlc][i+1];
+    i++;
+  }
+  return NULL;
+}
+
 int execCmds(char *argv[], int cmdPlc, tab_t *tab){
-  (void) tab;
-  //char *selCmd = 0;
-  char *cmd, *cmdDel = ";";
-  cmd = strtok(argv[cmdPlc], cmdDel);
+        (void) tab;
+  char *cmd;
+  int cmdNum = 0;
   cellSel_t cellSel = {1, 1, -1, -1};
-  while(cmd){
+  while(1){
+    //Getting next command:
+    cmdNum++;
+    cmd = getCmd(argv, cmdPlc, cmdNum);
+    if(cmd == NULL)
+      break;
+
+    //Selection:
     int isCellSelRet = isCellSel(cmd, &cellSel);
     if(isCellSelRet < 0)
       return isCellSelRet; //Err
     else if(isCellSelRet > 0){
-      cmd = strtok(NULL, cmdDel);
       continue; //The command is a selection command
     }
-    //get command
-    cmd = strtok(NULL, cmdDel);
-    //executing the command
+
+    //Exectution:
   }
   return 0;
 }
