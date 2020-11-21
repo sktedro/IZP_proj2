@@ -86,9 +86,9 @@ int getCmdPlc(char *argv[]){
 }
 
 bool firstMalloc(tab_t *tab){
-  tab->row = malloc(sizeof(void*));
+  tab->row = malloc(sizeof(row_t));
   if(!tab->row) return false;
-  tab->row[0].cell = malloc(sizeof(void*));
+  tab->row[0].cell = malloc(sizeof(cell_t));
   if(!tab->row[0].cell) return false;
   tab->row[0].cell[0].cont = malloc(sizeof(void*));
   if(!tab->row[0].cell[0].cont) return false;
@@ -108,7 +108,7 @@ bool getTab(char *argv[], tab_t *tab, char *del){
   //If there are delimiters entered, filename will be as the 4th argument
   int rowN = 1, cellN = 1, cellcN = 1;
   char tempC;
-  bool quoted = false, makeQuoted = false;
+  bool quoted = false/*, makeQuoted = false*/;
   if(!firstMalloc(tab)) return false;
   for(int i = 0; tempC != EOF; i++){
     bool skip = false;
@@ -126,6 +126,8 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         tab->row = p;
         tab->row[rowN-1].cell = malloc(cellN*sizeof(cell_t));
         tab->row[rowN-1].len = 0;
+        tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(void*));
+        //tab->row[rowN-1].cell[cellN-1].cont[0] = '\0';
       }else if(isDel(&tempC, del)){
         cellN++;
         skip = true;
@@ -133,13 +135,13 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         cell_t *p = realloc(tab->row[rowN-1].cell, cellN*sizeof(cell_t));
         if(!p) return false;
         tab->row[rowN-1].cell = p;
+        tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(void*));
+        //tab->row[rowN-1].cell[cellN-1].cont[0] = '\0';
       }
     }
     if(!skip){
-      if(cellcN == 1)
-        tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(char*));
       cellcN++;
-      char *p = realloc(tab->row[rowN-1].cell[cellN-1].cont, (cellcN)*sizeof(char*));
+      char *p = realloc(tab->row[rowN-1].cell[cellN-1].cont, (cellcN)*sizeof(void*));
       if(!p) return false;
       tab->row[rowN-1].cell[cellN-1].cont = p;
       tab->row[rowN-1].cell[cellN-1].cont[cellcN-2] = tempC;
@@ -147,7 +149,7 @@ bool getTab(char *argv[], tab_t *tab, char *del){
     }
     tab->len = rowN;
     tab->row[rowN-1].len = cellN;
-    tab->row[rowN-1].cell[cellN-1].len = cellcN-1;
+    tab->row[rowN-1].cell[cellN-1].len = cellcN;
   }
   fclose(tabFile);
   return true;
@@ -155,11 +157,20 @@ bool getTab(char *argv[], tab_t *tab, char *del){
 
 void freeTab(tab_t *tab){
   for(int i = 0; i < tab->len; i++){
-    for(int j = 0; j < tab->row[i].len; j++)
+    for(int j = 0; j < tab->row[i].len; j++){
       free(tab->row[i].cell[j].cont);
+    }
     free(tab->row[i].cell);
   }
   free(tab->row);
+
+
+  /*
+  tab->row = malloc(sizeof(void*));
+  tab->row[0].cell = malloc(sizeof(void*));
+  tab->row[0].cell[0].cont = malloc(sizeof(void*));
+  tab->len = tab->row[0].len = tab->row[0].cell[0].len = 0;
+  */
 }
 
 void printTab(tab_t *tab, char *del){
@@ -220,8 +231,8 @@ bool addCols(tab_t *tab){
   return true;
 }
 
-int execCmds(char *argv[], int cmdPlc, long *tabSize, char *tabStr, char *del){
-  (void) tabSize; (void) tabStr; (void) del;
+int execCmds(char *argv[], int cmdPlc, tab_t *tab){
+  (void) tab;
   char *selCmd = 0;
   char *cmd, *cmdDel = ";";
   cmd = strtok(argv[cmdPlc], cmdDel);
@@ -251,6 +262,10 @@ int main(int argc, char *argv[]){
   tab_t tab;
   if(!getTab(argv, &tab, del)) return freeAndErr(&tab, -4);
   if(!addCols(&tab)) return freeAndErr(&tab, -4);
+  errCode = execCmds(argv, cmdPlc, &tab);
+  if(errCode)
+    return freeAndErr(&tab, errCode);
+
   printTab(&tab, del);
   freeTab(&tab);
 
