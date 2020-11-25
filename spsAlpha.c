@@ -420,11 +420,12 @@ bool shiftCol(tab_t *tab, int shiftFrom, int shiftBy){
   }else if(shiftBy < 0){
     shiftBy = -shiftBy; //Getting the absolute value
     for(int i = 0; i < (tab->len - 1); i++){
+      //printf("%s\n", tab->row[i].cell[1].cont);
       for(int j = 0; j < shiftBy; j++)
         free(tab->row[i].cell[shiftFrom + j - 1].cont);
       for(int j = 0; j < (tab->row[i].len - shiftFrom); j++){
         int temp = shiftFrom + j - 1;
-        tab->row[i].cell[temp].cont = tab->row[i].cell[temp + shiftBy].cont;
+        tab->row[i].cell[temp] = tab->row[i].cell[temp + shiftBy];
       }
       cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len - shiftBy)*sizeof(cell_t));
       /*
