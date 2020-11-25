@@ -56,6 +56,8 @@ int errFn(int errCode){
     case -5:
       fprintf(stderr, "Unknown error. Check your commands.");
       break;
+    case -6:
+      fprintf(stderr, "Numbers in entered selection commands have to be bigger than 0.");
   }
   fprintf(stderr, " The program will now exit.\n");
   return -errCode;
@@ -91,7 +93,7 @@ bool firstMalloc(tab_t *tab){
   if(!tab->row) return false;
   tab->row[0].cell = malloc(sizeof(cell_t));
   if(!tab->row[0].cell) return false;
-  tab->row[0].cell[0].cont = malloc(sizeof(void*));
+  tab->row[0].cell[0].cont = malloc(1);
   if(!tab->row[0].cell[0].cont) return false;
   tab->len = tab->row[0].len = tab->row[0].cell[0].len = 0;
   return true;
@@ -127,7 +129,7 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         tab->row = p;
         tab->row[rowN-1].cell = malloc(cellN*sizeof(cell_t));
         tab->row[rowN-1].len = 0;
-        tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(void*));
+        tab->row[rowN-1].cell[cellN-1].cont = malloc(1);
       }else if(isDel(&tempC, del)){
         cellN++;
         skip = true;
@@ -135,12 +137,12 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         cell_t *p = realloc(tab->row[rowN-1].cell, cellN*sizeof(cell_t));
         if(!p) return false;
         tab->row[rowN-1].cell = p;
-        tab->row[rowN-1].cell[cellN-1].cont = malloc(sizeof(void*));
+        tab->row[rowN-1].cell[cellN-1].cont = malloc(1);
       }
     }
     if(!skip){
       cellcN++;
-      char *p = realloc(tab->row[rowN-1].cell[cellN-1].cont, (cellcN)*sizeof(void*));
+      char *p = realloc(tab->row[rowN-1].cell[cellN-1].cont, cellcN);
       if(!p) return false;
       tab->row[rowN-1].cell[cellN-1].cont = p;
       tab->row[rowN-1].cell[cellN-1].cont[cellcN-2] = tempC;
@@ -165,12 +167,12 @@ void freeTab(tab_t *tab){
 }
 
 void printTab(tab_t *tab, char *del){
-  for(int i = 0; i+2 < tab->len; i++){
+  for(int i = 0; i+1 < tab->len; i++){
     for(int j = 0; j < tab->row[i].len; j++){
       for(int k = 0; k < tab->row[i].cell[j].len; k++)
         printf("%c", tab->row[i].cell[j].cont[k]);
       if(j+1 != tab->row[i].len)
-        printf("%c", del[0]);
+        printf("\t%c\t", del[0]);
     }
     printf("\n");
   }
@@ -178,7 +180,7 @@ void printTab(tab_t *tab, char *del){
 
 int getMaxCols(tab_t *tab){
   int max = 0;
-  for(int i = 0; i < tab->len; i++)
+  for(int i = 0; i < tab->len - 1; i++)
     if(tab->row[i].len > max)
       max = tab->row[i].len;
   return max;
@@ -194,7 +196,7 @@ bool addCols(tab_t *tab){
       tab->row[i].cell = p;
       tab->row[i].len = maxCols;
       for(int j = 0; j < diff; j++){
-        tab->row[i].cell[maxCols-diff+j].cont = malloc(sizeof(void*));
+        tab->row[i].cell[maxCols-diff+j].cont = malloc(1);
         if(!tab->row[i].cell[maxCols-diff+j].cont) return false;
         tab->row[i].cell[maxCols-diff+j].cont[0] = '\0';
         tab->row[i].cell[maxCols-diff+j].len = 1;
@@ -211,6 +213,7 @@ int getCellSelArg(char *cmd, int argNum){
   while(j != argNum){
     //if(cmd[i] == ']')
       //return -2;
+      //TODO osetrit, ci tam nie je malo argumentov v prikaze
     if(cmd[i] == ',')
       j++;
     i++;
@@ -221,28 +224,34 @@ int getCellSelArg(char *cmd, int argNum){
       free(selArg);
       return -4;
     }
+    selArg = p;
     selArg[k-1] = cmd[i];
     selArg[k] = '\0';
     i++;
     k++;
   }
-  char *tolptr = NULL;
-  int arg = strtol(selArg, &tolptr, 10);
   if(!strcmp(selArg, "_")){
     free(selArg);
     return 0; //Whole row/column was selected
   }
-  free(selArg);
-  if(*tolptr)
+  char *tolptr = NULL;
+  int arg = strtol(selArg, &tolptr, 10);
+  if(*tolptr){
+    free(selArg);
     return -1;
+  }
+  free(selArg);
+  if(arg < 1)
+    return -6;
   return arg;
 }
 
-int isCellSel(char *cmd, cellSel_t *cellSel){
+int isCellSel(char *cmd, cellSel_t *cellSel, cellSel_t *tempSel){
   if(cmd[0] != '[' || cmd[1] == 'f' || cmd[1] == 'm')
     return 0; //Not a selection command
   if(cmd[1] == 's'){
-    //TODO working with tempSels
+    if(strstr(cmd, "[set]") == cmd && (cmd[5] == ';' || cmd[5] == '\0'))
+      *tempSel = *cellSel;
     return 1;
   }
   int args = 1;
@@ -256,6 +265,7 @@ int isCellSel(char *cmd, cellSel_t *cellSel){
     argsArr[i] = getCellSelArg(cmd, i+1);
     if(argsArr[i] == -4) return -4;
     if(argsArr[i] == -1) return 0; //Argument is not a number and neither '_'
+    if(argsArr[i] == -6) return -6;
   }
   cellSel->row1 = argsArr[0];
   cellSel->col1 = argsArr[1];
@@ -264,6 +274,9 @@ int isCellSel(char *cmd, cellSel_t *cellSel){
     cellSel->row2 = argsArr[2];
     cellSel->col2 = argsArr[3];
     //printf("%d, %d", argsArr[2], argsArr[3]); 
+  }else{
+    cellSel->row2 = -1;
+    cellSel->col2 = -1;
   }
   //printf("\n");
 
@@ -272,8 +285,6 @@ int isCellSel(char *cmd, cellSel_t *cellSel){
 
 bool isEscaped(char *str, int charPlc){
   int i = 0;
-  //TODO PRECO  TO KURVA NEFUNGUJE? Program si mysli, ze je zadanych menej
-  //backslashov, ako actually zadanych je... Napr zadam 6, program vidi ?3?
   while((charPlc - i) > 0 && str[charPlc - i - 1] == backslash){
     i++;
     //printf("<%d>\n", i);
@@ -300,34 +311,203 @@ char *getCmd(char *argv[], int cmdPlc, int cmdNum){
     if(cmdNum == 1)
       return &argv[cmdPlc][0];
     if(actCmdNum == cmdNum)
-      return &argv[cmdPlc][i+1];
+      return &argv[cmdPlc][i];
     i++;
   }
-  return NULL;
+  if(cmdNum > actCmdNum + 1)
+    return NULL;
+  return &argv[cmdPlc][i]; 
+}
+
+bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t cellSel, tab_t *tab){
+  int var;
+  if(cmdLen < 6) return 0;
+  if((cmd[6] == '\0' || cmd[6] == ';') && cmd[5] >= 0 && cmd[5] <= 9){
+    var = (int)cmd[5];
+    if(cellSel.row2 > 0 || cellSel.col2 > 0 
+        || cellSel.row1 < 1 || cellSel.col1 < 1) 
+      return 0;
+    if(strstr(cmd, "def _") == cmd){
+      char *cell = tab->row[cellSel.row1].cell[cellSel.col1].cont;
+      int len = strlen(cell);
+      char *p = realloc(tempVar[var], len + 1);
+      if(!p) return 0;
+      tempVar[var] = p;
+      memcpy(tempVar[var], cell, len); 
+    }else if(strstr(cmd, "use _") == cmd){
+      //TODO
+    }else if(strstr(cmd, "inc _") == cmd){
+      char *todptr;
+      double val = strtod(tempVar[var], &todptr);
+      if(todptr) 
+        sprintf(tempVar[var], "1");
+      else
+        sprintf(tempVar[var], "%g", ++val);
+    }
+  }
+  return 0;
+}
+
+bool allocTempVars(char *tempVar[10]){
+  for(int i = 0; i < 10; i++){
+    tempVar[i] = malloc(1);
+    if(!tempVar[i]) return false;
+    tempVar[i][0] = '\0';
+  }
+  return true;
+}
+
+void freeTempVars(char *tempVar[10]){
+  for(int i = 0; i < 10; i++)
+    free(tempVar[i]);
+}
+
+//Deleting or adding rows
+bool shiftRow(tab_t *tab, int shiftFrom, int shiftBy){
+  if(shiftBy > 0){ //Inserting or adding rows
+    row_t *p = realloc(tab->row, (tab->len + shiftBy)*sizeof(row_t));
+    printf("%d, ", tab->len + shiftBy);
+    if(!p) return false;
+    tab->len += shiftBy; 
+    printf("%d\n", tab->len);
+    tab->row = p;
+    for(int i = tab->len - 1; i > shiftFrom; i--)
+      tab->row[i] = tab->row[i - 1];
+    for(int i = 0; i < shiftBy; i++){
+      tab->row[shiftFrom + i].cell = malloc(sizeof(cell_t));
+      if(!tab->row[shiftFrom + i].cell) return false;
+      tab->row[shiftFrom + i].len = 1;
+      tab->row[shiftFrom + i].cell[0].cont = malloc(1);
+      if(!tab->row[shiftFrom + i].cell[0].cont) return false;
+      tab->row[shiftFrom + i].cell[0].cont[0] = '\0';
+      tab->row[shiftFrom + i].cell[0].len = 1;
+    }
+  }else if(shiftBy < 0){ //Deleting rows
+    shiftFrom = shiftFrom - 1; //Because we're indexing
+    for(int i = 0; i < -shiftBy; i++){
+      for(int j = 0; j < tab->row[shiftFrom + i].len; j++)
+        free(tab->row[shiftFrom + i].cell[j].cont);
+      free(tab->row[shiftFrom + i].cell);
+    }
+    for(int i = shiftFrom; i < tab->len + shiftBy + 1; i++)
+      tab->row[i] = tab->row[i + (-shiftBy)];
+    row_t *p = realloc(tab->row, (tab->len + shiftBy)*sizeof(row_t));
+    if(!p) return false;
+    tab->len += shiftBy;
+    tab->row = p;
+  }
+  return true;
+}
+
+bool shiftCol(tab_t *tab, int shiftFrom, int shiftBy){
+  if(shiftBy > 0){
+    for(int i = 0; i < tab->len; i++){
+      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len + shiftBy)*sizeof(cell_t));
+      if(!p) 
+        return false;
+      tab->row[i].len += shiftBy;
+      tab->row[i].cell = p;
+      for(int j = (tab->row[i].len - 1); j > shiftFrom; j--)
+        tab->row[i].cell[j] = tab->row[i].cell[j - shiftBy];
+      for(int j = shiftFrom; j < shiftFrom + shiftBy; j++){
+        tab->row[i].cell[j].cont = malloc(1);
+        if(!tab->row[i].cell[j].cont)
+          return false;
+        tab->row[i].cell[j].cont[0] = '\0';
+        tab->row[i].cell[j].len = 1;
+      }
+    }
+  }else if(shiftBy < 0){
+    shiftBy = -shiftBy; //Getting the absolute value
+    for(int i = 0; i < (tab->len - 1); i++){
+      for(int j = 0; j < shiftBy; j++)
+        free(tab->row[i].cell[shiftFrom + j - 1].cont);
+      for(int j = 0; j < (tab->row[i].len - shiftFrom); j++){
+        int temp = shiftFrom + j - 1;
+        tab->row[i].cell[temp].cont = tab->row[i].cell[temp + shiftBy].cont;
+      }
+      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len - shiftBy)*sizeof(cell_t));
+      /*
+      printf("\n--\n");
+      printTab(tab, "| ");
+      printf("\n--\n");
+      */
+      if(!p)
+        return false;
+      tab->row[i].cell = p;
+      //printf("%d, ", tab->row[i].len);
+      tab->row[i].len -= shiftBy;
+      //printf("%d\n", tab->row[i].len);
+    }
+  }
+  return true;
+}
+
+int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t cellSel){
+  if(cellSel.row2 != -1 || cellSel.col2 != -1)
+    return 0;
+  if(cmdLen == 4 && (cmd[4] == '\0' || cmd[4] == ';')){
+    if(strstr(cmd, "irow") == cmd){
+      if(!shiftRow(tab, cellSel.row1 - 1, 1))
+        return -1;
+    }else if(strstr(cmd, "arow") == cmd){
+      if(!shiftRow(tab, cellSel.row1, 1))
+        return -1;
+    }else if(strstr(cmd, "drow") == cmd){
+      if(!shiftRow(tab, cellSel.row1, -1))
+        return -1;
+    }else if(strstr(cmd, "icol") == cmd){
+      if(!shiftCol(tab, cellSel.col1 - 1, 1))
+        return -1;
+    }else if(strstr(cmd, "acol") == cmd){
+      if(!shiftCol(tab, cellSel.col1, 1))
+        return -1;
+    }else if(strstr(cmd, "dcol") == cmd){
+      if(!shiftCol(tab, cellSel.col1, -1))
+        return -1;
+    }
+    addCols(tab);
+  }
+  return 0;
 }
 
 int execCmds(char *argv[], int cmdPlc, tab_t *tab){
-        (void) tab;
   char *cmd;
+  int cmdLen;
   int cmdNum = 0;
   cellSel_t cellSel = {1, 1, -1, -1};
+  cellSel_t tempSel = {-1, -1, -1, -1};
+  char *tempVar[10];
+  if(!allocTempVars(tempVar)) return -4;
   while(1){
     //Getting next command:
     cmdNum++;
     cmd = getCmd(argv, cmdPlc, cmdNum);
+    cmdLen = getCmd(argv, cmdPlc, cmdNum + 1) - cmd;
     if(cmd == NULL)
       break;
-
+    if(cmd != argv[cmdPlc]){
+      cmd++; //If this is not the first cmd, skip the delim
+      cmdLen--; //And dont count the delim as part of the command
+    }
     //Selection:
-    int isCellSelRet = isCellSel(cmd, &cellSel);
-    if(isCellSelRet < 0)
+    int isCellSelRet = isCellSel(cmd, &cellSel, &tempSel);
+    if(isCellSelRet < 0){
+      freeTempVars(tempVar);
       return isCellSelRet; //Err
+    }
     else if(isCellSelRet > 0){
       continue; //The command is a selection command
     }
 
     //Exectution:
+    tempVarFn(cmd, cmdLen, tempVar, cellSel, tab);
+    tabEdit(cmd, cmdLen, tab, cellSel);
+    /*
+    contEdit();
+    */
   }
+  freeTempVars(tempVar);
   return 0;
 }
 

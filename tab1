@@ -5,7 +5,7 @@
 0.49 0.5 1.5 3.9 10.0
 a b c d e
 f g h i j
-rows cset beginswith acol rseq
+rows cset begin acol rseq
 A B C D E
 LORem iPSUM ANyAdat bazdmeg OKE
 9 8 7 6 5
