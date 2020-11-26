@@ -15,6 +15,8 @@
 
 #define perr(X)           fprintf(stderr, X)
 
+//TODO USE THOSE MACROS <3
+
 enum cmds{irow, arow, drow, icol, acol, dcol, set, clear, swap, sum, avg, count, len/*, def, use, inc, set*/};
 
 typedef struct{
@@ -213,15 +215,15 @@ bool addCols(tab_t *tab){
   for(int i = 0; i < tab->len; i++){
     if(SROW(i).len != maxCols){
       int diff = maxCols - SROW(i).len;
-      cell_t *p = realloc(CELL(i), maxCols*sizeof(cell_t));
+      cell_t *p = realloc(SROW(i).cell, maxCols*sizeof(cell_t));
       if(!p) return false;
-      CELL(i) = p;
-      SROW(i).len = maxCols;
+      tab->row[i].cell = p;
+      tab->row[i].len = maxCols;
       for(int j = 0; j < diff; j++){
-        CONT(i, maxCols - diff + j) = malloc(1);
-        if(!CONT(i, maxCols - diff + j)) return false;
-        SCONT(i, maxCols - diff + j, 0) = '\0';
-        SCELL(i, maxCols - diff + j).len = 1;
+        tab->row[i].cell[maxCols-diff+j].cont = malloc(1);
+        if(!tab->row[i].cell[maxCols-diff+j].cont) return false;
+        tab->row[i].cell[maxCols-diff+j].cont[0] = '\0';
+        tab->row[i].cell[maxCols-diff+j].len = 1;
       }
     }
   }
@@ -360,14 +362,14 @@ bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *t
       strcpy(tempVar[var], CONT(sel.r1 - 1, sel.c1 - 1));
     }else if(strstr(cmd, "use _") == cmd){
       int tempVarLen = strlen(tempVar[var]) + 1;
-      if(tempVarLen != SCELL(sel.r1 - 1, sel.c1 - 1).len){
-        char *p = realloc(CONT(sel.r1 - 1, sel.c1 - 1), tempVarLen);
+      if(tempVarLen != tab->row[sel.r1 - 1].cell[sel.c1 - 1].len){
+        char *p = realloc(tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont, tempVarLen);
         if(!p) return 0;
-        CONT(sel.r1 - 1, sel.c1 - 1) = p;
-        SCELL(sel.r1 - 1, sel.c1 - 1).len = tempVarLen;
-        SCONT(sel.r1 - 1, sel.c1 - 1, tempVarLen - 1) = '\0';
+        tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont = p;
+        tab->row[sel.r1 - 1].cell[sel.c1 - 1].len = tempVarLen;
+        tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont[tempVarLen - 1] = '\0';
       }
-      strcpy(CONT(sel.r1 - 1, sel.c1 - 1), tempVar[var]);
+      strcpy(tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont, tempVar[var]);
     }else if(strstr(cmd, "inc _") == cmd){
       char *todptr;
       double val = strtod(tempVar[var], &todptr);
@@ -396,33 +398,33 @@ void freeTempVars(char *tempVar[10]){
 //Deleting or adding rows
 bool shiftRow(tab_t *tab, int from, int by){
   if(by > 0){ //Inserting or adding rows
-    row_t *p = realloc(ROW, (tab->len + by)*sizeof(row_t));
+    row_t *p = realloc(tab->row, (tab->len + by)*sizeof(row_t));
     if(!p) return false;
     tab->len += by; 
-    ROW = p;
+    tab->row = p;
     for(int i = tab->len - 1; i > from; i--)
-      SROW(i) = SROW(i - 1);
+      tab->row[i] = tab->row[i - 1];
     for(int i = 0; i < by; i++){
-      CELL(from + i) = malloc(sizeof(cell_t));
-      if(!CELL(from + i)) return false;
-      SROW(from + i).len = 1;
-      CONT(from + i, 0) = malloc(1);
-      if(!CONT(from + i, 0)) return false;
-      SCONT(from + i, 0, 0) = '\0';
-      SCELL(from + i, 0).len = 1;
+      tab->row[from + i].cell = malloc(sizeof(cell_t));
+      if(!tab->row[from + i].cell) return false;
+      tab->row[from + i].len = 1;
+      tab->row[from + i].cell[0].cont = malloc(1);
+      if(!tab->row[from + i].cell[0].cont) return false;
+      tab->row[from + i].cell[0].cont[0] = '\0';
+      tab->row[from + i].cell[0].len = 1;
     }
   }else if(by < 0){ //Deleting rows
     for(int i = 0; i < -by; i++){
-      for(int j = 0; j < SROW(from + i - 1).len; j++)
-        free(SCELL(from + i - 1, j).cont);
-      free(CELL(from + i - 1));
+      for(int j = 0; j < tab->row[from + i - 1].len; j++)
+        free(tab->row[from + i - 1].cell[j].cont);
+      free(tab->row[from + i - 1].cell);
     }
     for(int i = from - 1; i < tab->len + by + 1; i++)
-      SROW(i) = SROW(i + (-by));
-    row_t *p = realloc(ROW, (tab->len + by)*sizeof(row_t));
+      tab->row[i] = tab->row[i + (-by)];
+    row_t *p = realloc(tab->row, (tab->len + by)*sizeof(row_t));
     if(!p) return false;
     tab->len += by;
-    ROW = p;
+    tab->row = p;
   }
   return true;
 }
@@ -430,33 +432,33 @@ bool shiftRow(tab_t *tab, int from, int by){
 bool shiftCol(tab_t *tab, int from, int by){
   if(by > 0){
     for(int i = 0; i < tab->len; i++){
-      cell_t *p = realloc(CELL(i), (SROW(i).len + by)*sizeof(cell_t));
+      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len + by)*sizeof(cell_t));
       if(!p) 
         return false;
-      SROW(i).len += by;
-      CELL(i) = p;
-      for(int j = (SROW(i).len - 1); j > from; j--)
-        SCELL(i, j) = SCELL(i, j - by);
+      tab->row[i].len += by;
+      tab->row[i].cell = p;
+      for(int j = (tab->row[i].len - 1); j > from; j--)
+        tab->row[i].cell[j] = tab->row[i].cell[j - by];
       for(int j = from; j < from + by; j++){
-        CONT(i, j) = malloc(1);
-        if(!CONT(i, j))
+        tab->row[i].cell[j].cont = malloc(1);
+        if(!tab->row[i].cell[j].cont)
           return false;
-        SCONT(i, j, 0) = '\0';
-        SCELL(i, j).len = 1;
+        tab->row[i].cell[j].cont[0] = '\0';
+        tab->row[i].cell[j].len = 1;
       }
     }
   }else if(by < 0){
     by = -by; //Getting the absolute value
     for(int i = 0; i < (tab->len - 1); i++){
       for(int j = 0; j < by; j++)
-        free(CONT(i, from + j - 1));
-      for(int j = 0; j < (SROW(i).len - from); j++)
-        SCELL(i, from + j - 1) = SCELL(i, from + j - 1 + by);
-      cell_t *p = realloc(CELL(i), (SROW(i).len - by)*sizeof(cell_t));
+        free(tab->row[i].cell[from + j - 1].cont);
+      for(int j = 0; j < (tab->row[i].len - from); j++)
+        tab->row[i].cell[from + j - 1] = tab->row[i].cell[from + j - 1 + by];
+      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len - by)*sizeof(cell_t));
       if(!p)
         return false;
-      CELL(i) = p;
-      SROW(i).len -= by;
+      tab->row[i].cell = p;
+      tab->row[i].len -= by;
     }
   }
   return true;
