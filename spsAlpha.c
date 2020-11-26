@@ -335,36 +335,36 @@ char *getCmd(char *argv[], int cmdPlc, int cmdNum){
 bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *tab){
   int var;
   if(cmdLen < 6) return 0;
-  if((cmd[6] == '\0' || cmd[6] == ';') && cmd[5] >= 0 && cmd[5] <= 9){
-    var = (int)cmd[5];
+  /*
+  printf("%s", cmd);
+  printf("<%c>\n", cmd[6]);
+  */
+  if((cmd[6] == '\0' || cmd[6] == ';') && cmd[5] >= '0' && cmd[5] <= '9'){
+    var = cmd[5] - '0';
     if(sel.r2 > 0 || sel.c2 > 0 
         || sel.r1 < 1 || sel.c1 < 1) 
       return 0;
     if(strstr(cmd, "def _") == cmd){
-      char *cell = tab->row[sel.r1].cell[sel.c1].cont;
-      int len = strlen(cell);
-      char *p = realloc(tempVar[var], len + 1);
+      char *p = realloc(tempVar[var], SCELL(sel.r1, sel.c1).len + 1);
       if(!p) return 0;
       tempVar[var] = p;
-      memcpy(tempVar[var], cell, len); 
+      strcpy(tempVar[var], CONT(sel.r1 - 1, sel.c1 - 1));
     }else if(strstr(cmd, "use _") == cmd){
-      int tempVarN = cmd[5] - '0';
-      int tempVarLen = strlen(tempVar[tempVarN]) + 1;
-      if(tempVarLen != tab->row[sel.r1].cell[sel.c1].len){
-        char *p = realloc(tab->row[sel.r1].cell[sel.c1].cont, tempVarLen);
+      int tempVarLen = strlen(tempVar[var]) + 1;
+      if(tempVarLen != tab->row[sel.r1 - 1].cell[sel.c1 - 1].len){
+        char *p = realloc(tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont, tempVarLen);
         if(!p) return 0;
-        tab->row[sel.r1].cell[sel.c1].cont = p;
-        tab->row[sel.r1].cell[sel.c1].len = tempVarLen;
-        tab->row[sel.r1].cell[sel.c1].cont[tempVarLen - 1] = '\0';
+        tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont = p;
+        tab->row[sel.r1 - 1].cell[sel.c1 - 1].len = tempVarLen;
+        tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont[tempVarLen - 1] = '\0';
       }
-      memcpy(tab->row[sel.r1].cell[sel.c1].cont, tempVar[tempVarN], tempVarLen);
+      strcpy(tab->row[sel.r1 - 1].cell[sel.c1 - 1].cont, tempVar[var]);
     }else if(strstr(cmd, "inc _") == cmd){
       char *todptr;
       double val = strtod(tempVar[var], &todptr);
-      if(todptr) 
-        sprintf(tempVar[var], "1");
-      else
-        sprintf(tempVar[var], "%g", ++val);
+      if(todptr && todptr[0] != '\0') 
+        val = 0;
+      sprintf(tempVar[var], "%g", ++val);
     }
   }
   return 0;
