@@ -36,10 +36,10 @@ typedef struct{
 
 
 typedef struct{
-  int row1;
-  int col1;
-  int row2;
-  int col2;
+  int r1;
+  int c1;
+  int r2;
+  int c2;
 } cellSel_t;
 
 typedef struct{
@@ -259,12 +259,12 @@ int getCellSelArg(char *cmd, int argNum){
   return arg;
 }
 
-int isCellSel(char *cmd, cellSel_t *cellSel, cellSel_t *tempSel){
+int isCellSel(char *cmd, cellSel_t *sel, cellSel_t *tempSel){
   if(cmd[0] != '[' || cmd[1] == 'f' || cmd[1] == 'm')
     return 0; //Not a selection command
   if(cmd[1] == 's'){
     if(strstr(cmd, "[set]") == cmd && (cmd[5] == ';' || cmd[5] == '\0'))
-      *tempSel = *cellSel;
+      *tempSel = *sel;
     return 1;
   }
   int args = 1;
@@ -280,16 +280,16 @@ int isCellSel(char *cmd, cellSel_t *cellSel, cellSel_t *tempSel){
     if(argsArr[i] == -1) return 0; //Argument is not a number and neither '_'
     if(argsArr[i] == -6) return -6;
   }
-  cellSel->row1 = argsArr[0];
-  cellSel->col1 = argsArr[1];
+  sel->r1 = argsArr[0];
+  sel->c1 = argsArr[1];
   //printf("%d, %d; ", argsArr[0], argsArr[1]); 
   if(args == 4){
-    cellSel->row2 = argsArr[2];
-    cellSel->col2 = argsArr[3];
+    sel->r2 = argsArr[2];
+    sel->c2 = argsArr[3];
     //printf("%d, %d", argsArr[2], argsArr[3]); 
   }else{
-    cellSel->row2 = -1;
-    cellSel->col2 = -1;
+    sel->r2 = -1;
+    sel->c2 = -1;
   }
   //printf("\n");
 
@@ -332,16 +332,16 @@ char *getCmd(char *argv[], int cmdPlc, int cmdNum){
   return &argv[cmdPlc][i]; 
 }
 
-bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t cellSel, tab_t *tab){
+bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *tab){
   int var;
   if(cmdLen < 6) return 0;
   if((cmd[6] == '\0' || cmd[6] == ';') && cmd[5] >= 0 && cmd[5] <= 9){
     var = (int)cmd[5];
-    if(cellSel.row2 > 0 || cellSel.col2 > 0 
-        || cellSel.row1 < 1 || cellSel.col1 < 1) 
+    if(sel.r2 > 0 || sel.c2 > 0 
+        || sel.r1 < 1 || sel.c1 < 1) 
       return 0;
     if(strstr(cmd, "def _") == cmd){
-      char *cell = tab->row[cellSel.row1].cell[cellSel.col1].cont;
+      char *cell = tab->row[sel.r1].cell[sel.c1].cont;
       int len = strlen(cell);
       char *p = realloc(tempVar[var], len + 1);
       if(!p) return 0;
@@ -350,14 +350,14 @@ bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t cellSel, tab_
     }else if(strstr(cmd, "use _") == cmd){
       int tempVarN = cmd[5] - '0';
       int tempVarLen = strlen(tempVar[tempVarN]) + 1;
-      if(tempVarLen != tab->row[cellSel.row1].cell[cellSel.col1].len){
-        char *p = realloc(tab->row[cellSel.row1].cell[cellSel.col1].cont, tempVarLen);
+      if(tempVarLen != tab->row[sel.r1].cell[sel.c1].len){
+        char *p = realloc(tab->row[sel.r1].cell[sel.c1].cont, tempVarLen);
         if(!p) return 0;
-        tab->row[cellSel.row1].cell[cellSel.col1].cont = p;
-        tab->row[cellSel.row1].cell[cellSel.col1].len = tempVarLen;
-        tab->row[cellSel.row1].cell[cellSel.col1].cont[tempVarLen - 1] = '\0';
+        tab->row[sel.r1].cell[sel.c1].cont = p;
+        tab->row[sel.r1].cell[sel.c1].len = tempVarLen;
+        tab->row[sel.r1].cell[sel.c1].cont[tempVarLen - 1] = '\0';
       }
-      memcpy(tab->row[cellSel.row1].cell[cellSel.col1].cont, tempVar[tempVarN], tempVarLen);
+      memcpy(tab->row[sel.r1].cell[sel.c1].cont, tempVar[tempVarN], tempVarLen);
     }else if(strstr(cmd, "inc _") == cmd){
       char *todptr;
       double val = strtod(tempVar[var], &todptr);
@@ -385,50 +385,50 @@ void freeTempVars(char *tempVar[10]){
 }
 
 //Deleting or adding rows
-bool shiftRow(tab_t *tab, int shiftFrom, int shiftBy){
-  if(shiftBy > 0){ //Inserting or adding rows
-    row_t *p = realloc(tab->row, (tab->len + shiftBy)*sizeof(row_t));
+bool shiftRow(tab_t *tab, int from, int by){
+  if(by > 0){ //Inserting or adding rows
+    row_t *p = realloc(tab->row, (tab->len + by)*sizeof(row_t));
     if(!p) return false;
-    tab->len += shiftBy; 
+    tab->len += by; 
     tab->row = p;
-    for(int i = tab->len - 1; i > shiftFrom; i--)
+    for(int i = tab->len - 1; i > from; i--)
       tab->row[i] = tab->row[i - 1];
-    for(int i = 0; i < shiftBy; i++){
-      tab->row[shiftFrom + i].cell = malloc(sizeof(cell_t));
-      if(!tab->row[shiftFrom + i].cell) return false;
-      tab->row[shiftFrom + i].len = 1;
-      tab->row[shiftFrom + i].cell[0].cont = malloc(1);
-      if(!tab->row[shiftFrom + i].cell[0].cont) return false;
-      tab->row[shiftFrom + i].cell[0].cont[0] = '\0';
-      tab->row[shiftFrom + i].cell[0].len = 1;
+    for(int i = 0; i < by; i++){
+      tab->row[from + i].cell = malloc(sizeof(cell_t));
+      if(!tab->row[from + i].cell) return false;
+      tab->row[from + i].len = 1;
+      tab->row[from + i].cell[0].cont = malloc(1);
+      if(!tab->row[from + i].cell[0].cont) return false;
+      tab->row[from + i].cell[0].cont[0] = '\0';
+      tab->row[from + i].cell[0].len = 1;
     }
-  }else if(shiftBy < 0){ //Deleting rows
-    for(int i = 0; i < -shiftBy; i++){
-      for(int j = 0; j < tab->row[shiftFrom + i - 1].len; j++)
-        free(tab->row[shiftFrom + i - 1].cell[j].cont);
-      free(tab->row[shiftFrom + i - 1].cell);
+  }else if(by < 0){ //Deleting rows
+    for(int i = 0; i < -by; i++){
+      for(int j = 0; j < tab->row[from + i - 1].len; j++)
+        free(tab->row[from + i - 1].cell[j].cont);
+      free(tab->row[from + i - 1].cell);
     }
-    for(int i = shiftFrom - 1; i < tab->len + shiftBy + 1; i++)
-      tab->row[i] = tab->row[i + (-shiftBy)];
-    row_t *p = realloc(tab->row, (tab->len + shiftBy)*sizeof(row_t));
+    for(int i = from - 1; i < tab->len + by + 1; i++)
+      tab->row[i] = tab->row[i + (-by)];
+    row_t *p = realloc(tab->row, (tab->len + by)*sizeof(row_t));
     if(!p) return false;
-    tab->len += shiftBy;
+    tab->len += by;
     tab->row = p;
   }
   return true;
 }
 
-bool shiftCol(tab_t *tab, int shiftFrom, int shiftBy){
-  if(shiftBy > 0){
+bool shiftCol(tab_t *tab, int from, int by){
+  if(by > 0){
     for(int i = 0; i < tab->len; i++){
-      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len + shiftBy)*sizeof(cell_t));
+      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len + by)*sizeof(cell_t));
       if(!p) 
         return false;
-      tab->row[i].len += shiftBy;
+      tab->row[i].len += by;
       tab->row[i].cell = p;
-      for(int j = (tab->row[i].len - 1); j > shiftFrom; j--)
-        tab->row[i].cell[j] = tab->row[i].cell[j - shiftBy];
-      for(int j = shiftFrom; j < shiftFrom + shiftBy; j++){
+      for(int j = (tab->row[i].len - 1); j > from; j--)
+        tab->row[i].cell[j] = tab->row[i].cell[j - by];
+      for(int j = from; j < from + by; j++){
         tab->row[i].cell[j].cont = malloc(1);
         if(!tab->row[i].cell[j].cont)
           return false;
@@ -436,52 +436,52 @@ bool shiftCol(tab_t *tab, int shiftFrom, int shiftBy){
         tab->row[i].cell[j].len = 1;
       }
     }
-  }else if(shiftBy < 0){
-    shiftBy = -shiftBy; //Getting the absolute value
+  }else if(by < 0){
+    by = -by; //Getting the absolute value
     for(int i = 0; i < (tab->len - 1); i++){
-      for(int j = 0; j < shiftBy; j++)
-        free(tab->row[i].cell[shiftFrom + j - 1].cont);
-      for(int j = 0; j < (tab->row[i].len - shiftFrom); j++)
-        tab->row[i].cell[shiftFrom + j - 1] = tab->row[i].cell[shiftFrom + j - 1 + shiftBy];
-      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len - shiftBy)*sizeof(cell_t));
+      for(int j = 0; j < by; j++)
+        free(tab->row[i].cell[from + j - 1].cont);
+      for(int j = 0; j < (tab->row[i].len - from); j++)
+        tab->row[i].cell[from + j - 1] = tab->row[i].cell[from + j - 1 + by];
+      cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len - by)*sizeof(cell_t));
       if(!p)
         return false;
       tab->row[i].cell = p;
-      tab->row[i].len -= shiftBy;
+      tab->row[i].len -= by;
     }
   }
   return true;
 }
 
-int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t cellSel){
-  if(cellSel.row2 != -1 || cellSel.col2 != -1)
+int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
+  if(sel.r2 != -1 || sel.c2 != -1)
     return 0;
   if(cmdLen == 4 && (cmd[4] == '\0' || cmd[4] == ';')){
     if(strstr(cmd, "irow") == cmd){
-      if(!shiftRow(tab, cellSel.row1 - 1, 1))
+      if(!shiftRow(tab, sel.r1 - 1, 1))
         return -1;
     }else if(strstr(cmd, "arow") == cmd){
-      if(!shiftRow(tab, cellSel.row1, 1))
+      if(!shiftRow(tab, sel.r1, 1))
         return -1;
     }else if(strstr(cmd, "drow") == cmd){
-      if(!shiftRow(tab, cellSel.row1, -1))
+      if(!shiftRow(tab, sel.r1, -1))
         return -1;
     }else if(strstr(cmd, "icol") == cmd){
-      if(!shiftCol(tab, cellSel.col1 - 1, 1))
+      if(!shiftCol(tab, sel.c1 - 1, 1))
         return -1;
     }else if(strstr(cmd, "acol") == cmd){
-      if(!shiftCol(tab, cellSel.col1, 1))
+      if(!shiftCol(tab, sel.c1, 1))
         return -1;
     }else if(strstr(cmd, "dcol") == cmd)
-      if(!shiftCol(tab, cellSel.col1, -1))
+      if(!shiftCol(tab, sel.c1, -1))
         return -1;
     addCols(tab);
   }
   return 0;
 }
 
-int contEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t cellSel){
-  (void) cmd; (void) cmdLen; (void) tab; (void) cellSel;
+int contEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
+  (void) cmd; (void) cmdLen; (void) tab; (void) sel;
 
   return 0;
 }
@@ -490,7 +490,7 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab){
   char *cmd;
   int cmdLen;
   int cmdNum = 0;
-  cellSel_t cellSel = {1, 1, -1, -1};
+  cellSel_t sel = {1, 1, -1, -1};
   cellSel_t tempSel = {-1, -1, -1, -1};
   char *tempVar[10];
   if(!allocTempVars(tempVar)) return -4;
@@ -506,7 +506,7 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab){
       cmdLen--; //And dont count the delim as part of the command
     }
     //Selection:
-    int isCellSelRet = isCellSel(cmd, &cellSel, &tempSel);
+    int isCellSelRet = isCellSel(cmd, &sel, &tempSel);
     if(isCellSelRet < 0){
       freeTempVars(tempVar);
       return isCellSelRet; //Err
@@ -515,9 +515,9 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab){
       continue; //The command is a selection command
     }
     //Exectution:
-    tempVarFn(cmd, cmdLen, tempVar, cellSel, tab);
-    tabEdit(cmd, cmdLen, tab, cellSel);
-    contEdit(cmd, cmdLen, tab, cellSel);
+    tempVarFn(cmd, cmdLen, tempVar, sel, tab);
+    tabEdit(cmd, cmdLen, tab, sel);
+    contEdit(cmd, cmdLen, tab, sel);
   }
   freeTempVars(tempVar);
   return 0;
