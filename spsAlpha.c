@@ -3,7 +3,19 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define backslash 92
+#define backslash         92
+
+#define ROW               tab->row
+#define SROW(X)           tab->row[X]
+#define CELL(X)           tab->row[X].cell
+#define SCELL(X, Y)       tab->row[X].cell[Y]
+#define CONT(X, Y)        tab->row[X].cell[Y].cont
+#define SCONT(X, Y, Z)    tab->row[X].cell[Y].cont[Z]
+//SROW, SCELL, SCONT is a specific row/cell/cont
+
+#define perr(X)           fprintf(stderr, X)
+
+//TODO USE THOSE MACROS <3
 
 enum cmds{irow, arow, drow, icol, acol, dcol, set, clear, swap, sum, avg, count, len/*, def, use, inc, set*/};
 
@@ -32,6 +44,7 @@ typedef struct{
 
 typedef struct{
   cellSel_t tempSel[10];
+  int len;
 } tempSel_t;
 
 typedef struct{
@@ -42,24 +55,24 @@ typedef struct{
 int errFn(int errCode){
   switch (errCode){
     case -1:
-      fprintf(stderr, "There are not enough aruments entered!");
+      perr("There are not enought arguments entered!");
       break;
     case -2:
-      fprintf(stderr, "Too many arguments entered!");
+      perr("Too many arguments entered!");
       break;
     case -3:
-      fprintf(stderr, "Did you enter the command sequence and the filename, too?");
+      perr("Did you enter the command sequence and the filename, too?");
       break;
     case -4:
-      fprintf(stderr, "Sorry, memory allocation was unsuccessful.");
+      perr("Sorry, memory allocation was unsuccessful.");
       break;
     case -5:
-      fprintf(stderr, "Unknown error. Check your commands.");
+      perr("Unknown error. Check your commands.");
       break;
     case -6:
-      fprintf(stderr, "Numbers in entered selection commands have to be bigger than 0.");
+      perr("Numbers in entered selection commands have to be bigger than 0.");
   }
-  fprintf(stderr, " The program will now exit.\n");
+  perr(" The program will now exit.\n");
   return -errCode;
 }
 
@@ -89,13 +102,13 @@ int getCmdPlc(char *argv[]){
 }
 
 bool firstMalloc(tab_t *tab){
-  tab->row = malloc(sizeof(row_t));
-  if(!tab->row) return false;
-  tab->row[0].cell = malloc(sizeof(cell_t));
-  if(!tab->row[0].cell) return false;
-  tab->row[0].cell[0].cont = malloc(1);
-  if(!tab->row[0].cell[0].cont) return false;
-  tab->len = tab->row[0].len = tab->row[0].cell[0].len = 0;
+  ROW = malloc(sizeof(row_t));
+  if(!ROW) return false;
+  CELL(0) = malloc(sizeof(cell_t));
+  if(!CELL(0)) return false;
+  CONT(0, 0) = malloc(1);
+  if(!CONT(0, 0)) return false;
+  tab->len = SROW(0).len = SCELL(0, 0).len = 0;
   return true;
 }
 
@@ -136,8 +149,8 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         cellcN = 1;
         cell_t *p = realloc(tab->row[rowN-1].cell, cellN*sizeof(cell_t));
         if(!p) return false;
-        tab->row[rowN-1].cell = p;
-        tab->row[rowN-1].cell[cellN-1].cont = malloc(1);
+        CELL(rowN-1) = p;
+        CONT(rowN-1, cellN-1) = malloc(1);
       }
     }
     if(!skip){
@@ -335,7 +348,16 @@ bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t cellSel, tab_
       tempVar[var] = p;
       memcpy(tempVar[var], cell, len); 
     }else if(strstr(cmd, "use _") == cmd){
-      //TODO
+      int tempVarN = cmd[5] - '0';
+      int tempVarLen = strlen(tempVar[tempVarN]) + 1;
+      if(tempVarLen != tab->row[cellSel.row1].cell[cellSel.col1].len){
+        char *p = realloc(tab->row[cellSel.row1].cell[cellSel.col1].cont, tempVarLen);
+        if(!p) return 0;
+        tab->row[cellSel.row1].cell[cellSel.col1].cont = p;
+        tab->row[cellSel.row1].cell[cellSel.col1].len = tempVarLen;
+        tab->row[cellSel.row1].cell[cellSel.col1].cont[tempVarLen - 1] = '\0';
+      }
+      memcpy(tab->row[cellSel.row1].cell[cellSel.col1].cont, tempVar[tempVarN], tempVarLen);
     }else if(strstr(cmd, "inc _") == cmd){
       char *todptr;
       double val = strtod(tempVar[var], &todptr);
@@ -366,10 +388,8 @@ void freeTempVars(char *tempVar[10]){
 bool shiftRow(tab_t *tab, int shiftFrom, int shiftBy){
   if(shiftBy > 0){ //Inserting or adding rows
     row_t *p = realloc(tab->row, (tab->len + shiftBy)*sizeof(row_t));
-    printf("%d, ", tab->len + shiftBy);
     if(!p) return false;
     tab->len += shiftBy; 
-    printf("%d\n", tab->len);
     tab->row = p;
     for(int i = tab->len - 1; i > shiftFrom; i--)
       tab->row[i] = tab->row[i - 1];
@@ -383,13 +403,12 @@ bool shiftRow(tab_t *tab, int shiftFrom, int shiftBy){
       tab->row[shiftFrom + i].cell[0].len = 1;
     }
   }else if(shiftBy < 0){ //Deleting rows
-    shiftFrom = shiftFrom - 1; //Because we're indexing
     for(int i = 0; i < -shiftBy; i++){
-      for(int j = 0; j < tab->row[shiftFrom + i].len; j++)
-        free(tab->row[shiftFrom + i].cell[j].cont);
-      free(tab->row[shiftFrom + i].cell);
+      for(int j = 0; j < tab->row[shiftFrom + i - 1].len; j++)
+        free(tab->row[shiftFrom + i - 1].cell[j].cont);
+      free(tab->row[shiftFrom + i - 1].cell);
     }
-    for(int i = shiftFrom; i < tab->len + shiftBy + 1; i++)
+    for(int i = shiftFrom - 1; i < tab->len + shiftBy + 1; i++)
       tab->row[i] = tab->row[i + (-shiftBy)];
     row_t *p = realloc(tab->row, (tab->len + shiftBy)*sizeof(row_t));
     if(!p) return false;
@@ -420,25 +439,15 @@ bool shiftCol(tab_t *tab, int shiftFrom, int shiftBy){
   }else if(shiftBy < 0){
     shiftBy = -shiftBy; //Getting the absolute value
     for(int i = 0; i < (tab->len - 1); i++){
-      //printf("%s\n", tab->row[i].cell[1].cont);
       for(int j = 0; j < shiftBy; j++)
         free(tab->row[i].cell[shiftFrom + j - 1].cont);
-      for(int j = 0; j < (tab->row[i].len - shiftFrom); j++){
-        int temp = shiftFrom + j - 1;
-        tab->row[i].cell[temp] = tab->row[i].cell[temp + shiftBy];
-      }
+      for(int j = 0; j < (tab->row[i].len - shiftFrom); j++)
+        tab->row[i].cell[shiftFrom + j - 1] = tab->row[i].cell[shiftFrom + j - 1 + shiftBy];
       cell_t *p = realloc(tab->row[i].cell, (tab->row[i].len - shiftBy)*sizeof(cell_t));
-      /*
-      printf("\n--\n");
-      printTab(tab, "| ");
-      printf("\n--\n");
-      */
       if(!p)
         return false;
       tab->row[i].cell = p;
-      //printf("%d, ", tab->row[i].len);
       tab->row[i].len -= shiftBy;
-      //printf("%d\n", tab->row[i].len);
     }
   }
   return true;
@@ -463,12 +472,17 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t cellSel){
     }else if(strstr(cmd, "acol") == cmd){
       if(!shiftCol(tab, cellSel.col1, 1))
         return -1;
-    }else if(strstr(cmd, "dcol") == cmd){
+    }else if(strstr(cmd, "dcol") == cmd)
       if(!shiftCol(tab, cellSel.col1, -1))
         return -1;
-    }
     addCols(tab);
   }
+  return 0;
+}
+
+int contEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t cellSel){
+  (void) cmd; (void) cmdLen; (void) tab; (void) cellSel;
+
   return 0;
 }
 
@@ -500,13 +514,10 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab){
     else if(isCellSelRet > 0){
       continue; //The command is a selection command
     }
-
     //Exectution:
     tempVarFn(cmd, cmdLen, tempVar, cellSel, tab);
     tabEdit(cmd, cmdLen, tab, cellSel);
-    /*
-    contEdit();
-    */
+    contEdit(cmd, cmdLen, tab, cellSel);
   }
   freeTempVars(tempVar);
   return 0;
