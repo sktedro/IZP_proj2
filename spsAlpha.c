@@ -53,8 +53,11 @@ typedef struct{
 void printTab(tab_t *tab, char *del){
   for(int i = 0; i+1 < tab->len; i++){
     for(int j = 0; j < SROW(i).len; j++){
-      for(int k = 0; k < SCELL(i, j).len; k++)
+      //printf("SUP");
+      for(int k = 0; k < SCELL(i, j).len; k++){
         printf("%c", SCONT(i, j, k));
+      }
+      //printf(" %d", SCELL(i, j).len);
       if(j+1 != SROW(i).len)
         printf("\t%c\t", del[0]);
         //printf("%c", del[0]);
@@ -141,20 +144,22 @@ bool reallocCont(tab_t *tab, int rowN, int cellN, int by){
   return true;
 }
 
+bool reallocRowsFn(tab_t *tab, int nextSize){
+  row_t *p = realloc(ROW, (nextSize)*sizeof(row_t));
+  if(!p) 
+    return false;
+  ROW = p;
+  tab->len = nextSize; 
+  return true;
+}
 
 //Deleting or adding rows
 bool editTableRows(tab_t *tab, int from, int by){
-  if(from == 0)
+  if(from < 0)
     from = tab->len;
   if(by > 0){ //Inserting or adding rows
-
-    //TODO do funkcie??
-    row_t *p = realloc(ROW, (tab->len + by)*sizeof(row_t));
-    if(!p) 
+    if(!reallocRowsFn(tab, (tab->len + by)))
       return false;
-    ROW = p;
-    tab->len += by; 
-
     for(int i = tab->len - 1; i > from; i--)
       SROW(i) = SROW(i - 1);
     for(int i = 0; i < by; i++)
@@ -165,14 +170,8 @@ bool editTableRows(tab_t *tab, int from, int by){
       freeRow(tab, from + i);
     for(int i = from - 1; i < tab->len + by + 1; i++)
       SROW(i) = SROW(i + (-by));
-
-    //TODO -//-
-    row_t *p = realloc(ROW, (tab->len + by)*sizeof(row_t));
-    if(!p) 
+    if(!reallocRowsFn(tab, (tab->len + by)))
       return false;
-    ROW = p;
-    tab->len += by;
-
   }
   return true;
 }
@@ -186,7 +185,7 @@ bool reallocCellsFn(tab_t *tab, int rowN, int newSize){
   return true;
 }
 
-bool shiftCols(tab_t *tab, int rowN, int from, int by){
+bool editTableCols(tab_t *tab, int rowN, int from, int by){
   int howManyRows = 1;
   if(rowN == 0){
     howManyRows = tab->len - 1;
@@ -200,6 +199,9 @@ bool shiftCols(tab_t *tab, int rowN, int from, int by){
       if(!editTableRows(tab, i, -1))
         return false;
     }else if(by > 0){
+      if(from >= SROW(i - 1).len){
+        from = SROW(i - 1).len + 1;
+      }
       if(!reallocCellsFn(tab, i, newCellN))
         return false;
       for(int j = (SROW(i - 1)).len - 1; j + 1 > from; j--)
@@ -207,6 +209,11 @@ bool shiftCols(tab_t *tab, int rowN, int from, int by){
       for(int j = from; j < from + by; j++)
         if(!mallocCont(tab, i, j, 1))
           return false;
+      /*
+      for(int j = 0; j < SROW(i - 1).len; j++)
+        printf("%x, ", CONT(i - 1, j));
+      printf("\n");
+      */
     }
     else if(by < 0){
       for(int j = 0; j < by; j++)
@@ -215,6 +222,11 @@ bool shiftCols(tab_t *tab, int rowN, int from, int by){
         SCELL(i - 1, j - 1) = SCELL(i - 1, j - 1 + (-by));
       if(!reallocCellsFn(tab, i, newCellN))
         return false;
+      /*
+      for(int j = 0; j < SROW(i - 1).len; j++)
+        printf("%x, ", CONT(i - 1, j));
+      printf("\n");
+      */
     }
   }
   return true;
@@ -313,13 +325,13 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         rowN++;
         skip = true;
         cellN = cellcN = 1;
-        if(!editTableRows(tab, 0, 1))
+        if(!editTableRows(tab, -1, 1))
           return false;
       }else if(isDel(&tempC, del)){
         cellN++;
         skip = true;
         cellcN = 1;
-        if(!shiftCols(tab, rowN, cellN, 1))
+        if(!editTableCols(tab, rowN, cellN, 1))
           return false;
       }
     }
@@ -347,9 +359,12 @@ int getMaxCols(tab_t *tab){
 
 bool addCols(tab_t *tab){
   int maxCols = getMaxCols(tab);
-  for(int i = 0; i < tab->len; i++){
-    if(SROW(i).len != maxCols){
-      int diff = maxCols - SROW(i).len;
+  for(int i = 1; i < tab->len - 1; i++){
+    if(SROW(i - 1).len != maxCols){
+      int diff = maxCols - SROW(i - 1).len;
+      if(!editTableCols(tab, i, SROW(i - 1).len + 1, diff - 1))
+        return false;
+      /*
       cell_t *p = realloc(CELL(i), maxCols*sizeof(cell_t));
       if(!p) return false;
       CELL(i) = p;
@@ -360,8 +375,10 @@ bool addCols(tab_t *tab){
         SCONT(i, maxCols - diff + j, 0) = '\0';
         SCELL(i, maxCols - diff + j).len = 1;
       }
+      */
     }
   }
+  
   return true;
 }
 
@@ -545,13 +562,13 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
       if(!editTableRows(tab, sel.r1, -1))
         return -1;
     }else if(strstr(cmd, "icol") == cmd){
-      if(!shiftCols(tab, 0, sel.c1, 1))
+      if(!editTableCols(tab, 0, sel.c1, 1))
         return -1;
     }else if(strstr(cmd, "acol") == cmd){
-      if(!shiftCols(tab, 0, sel.c1 + 1, 1))
+      if(!editTableCols(tab, 0, sel.c1 + 1, 1))
         return -1;
     }else if(strstr(cmd, "dcol") == cmd){
-      if(!shiftCols(tab, 0, sel.c1, -1))
+      if(!editTableCols(tab, 0, sel.c1, -1))
         return -1;
     }
     addCols(tab);
