@@ -166,11 +166,11 @@ bool editTableRows(tab_t *tab, int from, int by){
       if(!mallocCell(tab, from + i + 1, 1))
         return false;
   }else if(by < 0){ //Deleting rows
-    for(int i = 0; i < -by; i++)
-      freeRow(tab, from + i);
+    for(int i = 0; i < (-by); i++)
+      freeRow(tab, from + i - 1);
     for(int i = from - 1; i < tab->len + by + 1; i++)
       SROW(i) = SROW(i + (-by));
-    if(!reallocRowsFn(tab, (tab->len + by)))
+    if(!reallocRowsFn(tab, (tab->len - (-by) + 1)))
       return false;
   }
   return true;
@@ -195,67 +195,32 @@ bool editTableCols(tab_t *tab, int rowN, int from, int by){
     from = SROW(0).len;
   for(int i = rowN; i < rowN + howManyRows; i++){
     int newCellN = SROW(i - 1).len + by;
-    if(newCellN == 0){
+    if(newCellN < 1){
       if(!editTableRows(tab, i, -1))
         return false;
     }else if(by > 0){
-      if(from >= SROW(i - 1).len){
+      if(from >= SROW(i - 1).len)
         from = SROW(i - 1).len + 1;
-      }
       if(!reallocCellsFn(tab, i, newCellN))
         return false;
-      for(int j = (SROW(i - 1)).len - 1; j + 1 > from; j--)
-        SCELL(i - 1, j) = SCELL(i - 1, j - by);
+      if(from < SROW(i - 1).len - by)
+        for(int j = (SROW(i - 1).len - 1); j + 1 > from; j--)
+          SCELL(i - 1, j) = SCELL(i - 1, j - by);
       for(int j = from; j < from + by; j++)
         if(!mallocCont(tab, i, j, 1))
           return false;
-      /*
-      for(int j = 0; j < SROW(i - 1).len; j++)
-        printf("%x, ", CONT(i - 1, j));
-      printf("\n");
-      */
     }
     else if(by < 0){
-      for(int j = 0; j < by; j++)
+      for(int j = 0; j < (-by); j++)
         free(CONT(i - 1, from + j - 1));
-      for(int j = from; j < (SROW(i - 1).len + (-by) - 1); j++)
+      for(int j = from; j < (SROW(i - 1).len - (-by) + 1); j++)
         SCELL(i - 1, j - 1) = SCELL(i - 1, j - 1 + (-by));
       if(!reallocCellsFn(tab, i, newCellN))
         return false;
-      /*
-      for(int j = 0; j < SROW(i - 1).len; j++)
-        printf("%x, ", CONT(i - 1, j));
-      printf("\n");
-      */
     }
   }
   return true;
 }
-
-bool reallocCells(tab_t *tab, int rowN, int by){
-  int newCellN = SROW(rowN - 1).len + by;
-  if(newCellN < 1){
-    if(!editTableRows(tab, rowN, -1))
-      return false;
-  }else if(by > 0){
-    if(!reallocCellsFn(tab, rowN, newCellN))
-      return false;
-    for(int i = 0; i < by; i++)
-      if(!mallocCont(tab, rowN, newCellN - i, 1))
-        return false;
-  }else if(by < 0){
-    //NOT TESTED
-    for(int i = 0; i < (-by); i++){
-      int cellToFree = SROW(rowN - 1).len - 1 - i;
-      free(CONT(rowN - 1, cellToFree));
-    }
-    SROW(rowN - 1).len += by;
-    if(!reallocCellsFn(tab, rowN, newCellN))
-      return false;
-  }
-  return true;
-}
-
 
 
 int checkArgs(int argc, char *argv[]){
@@ -299,10 +264,6 @@ bool firstMalloc(tab_t *tab){
   tab->len = 1;
   if(!mallocCell(tab, 1, 1))
     return false;
-  /*
-  if(!mallocCont(tab, 1, 1, 1))
-    return false;
-    */
   return true;
 }
 
@@ -323,27 +284,25 @@ bool getTab(char *argv[], tab_t *tab, char *del){
         //makeQuoted = true;
       if(tempC == '\n'){
         rowN++;
+        cellN = 1;
+        cellcN = 1;
         skip = true;
-        cellN = cellcN = 1;
         if(!editTableRows(tab, -1, 1))
           return false;
       }else if(isDel(&tempC, del)){
         cellN++;
-        skip = true;
         cellcN = 1;
+        skip = true;
         if(!editTableCols(tab, rowN, cellN, 1))
           return false;
       }
     }
     if(!skip){
       cellcN++;
+      SCONT(rowN - 1, cellN - 1, cellcN - 2) = tempC;
       if(!reallocCont(tab, rowN, cellN, 1))
         return false;
-      SCONT(rowN - 1, cellN - 1, cellcN - 2) = tempC;
     }
-    tab->len = rowN;
-    SROW(rowN - 1).len = cellN;
-    SCELL(rowN - 1, cellN - 1).len = cellcN;
   }
   fclose(tabFile);
   return true;
@@ -351,34 +310,18 @@ bool getTab(char *argv[], tab_t *tab, char *del){
 
 int getMaxCols(tab_t *tab){
   int max = 0;
-  for(int i = 0; i < tab->len - 1; i++)
-    if(SROW(i).len > max)
-      max = SROW(i).len;
+  for(int i = 1; i < tab->len; i++)
+    if(SROW(i - 1).len > max)
+      max = SROW(i - 1).len;
   return max;
 }
 
 bool addCols(tab_t *tab){
   int maxCols = getMaxCols(tab);
-  for(int i = 1; i < tab->len - 1; i++){
-    if(SROW(i - 1).len != maxCols){
-      int diff = maxCols - SROW(i - 1).len;
-      if(!editTableCols(tab, i, SROW(i - 1).len + 1, diff - 1))
+  for(int i = 1; i < tab->len; i++)
+    if(SROW(i - 1).len != maxCols)
+      if(!editTableCols(tab, i, SROW(i - 1).len, maxCols - SROW(i - 1).len))
         return false;
-      /*
-      cell_t *p = realloc(CELL(i), maxCols*sizeof(cell_t));
-      if(!p) return false;
-      CELL(i) = p;
-      SROW(i).len = maxCols;
-      for(int j = 0; j < diff; j++){
-        CONT(i, maxCols - diff + j) = malloc(1);
-        if(!CONT(i, maxCols - diff + j)) return false;
-        SCONT(i, maxCols - diff + j, 0) = '\0';
-        SCELL(i, maxCols - diff + j).len = 1;
-      }
-      */
-    }
-  }
-  
   return true;
 }
 
@@ -634,10 +577,6 @@ int main(int argc, char *argv[]){
   if(!addCols(&tab)) return freeAndErr(&tab, -4);
   errCode = execCmds(argv, cmdPlc, &tab);
   if(errCode) return freeAndErr(&tab, errCode);
-
-
-  //reallocCells(&tab, 1, 2);
-  if(!addCols(&tab)) return freeAndErr(&tab, -4);
 
 
   printTab(&tab, del);
