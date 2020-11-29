@@ -486,51 +486,9 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
 
 
 
-//bool min is false for "max", true for "min"
-void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min){
-  int r2 = (sel->r2 == 0) ? tab->len : sel->r2 + 1;
-  int c2 = (sel->c2 == 0) ? SROW(0).len : sel->c2 + 1;
-  int nextr1, nextc1;
-  double val;
-  bool init = false;
-  for(int i = sel->r1; i < r2; i++){
-    for(int j = sel->c1; j < c2; j++){
-      char *todptr = NULL;
-      double temp = strtod(CONT(i - 1, j - 1), &todptr);
-      if(!todptr[0] && (!init || (min && temp < val) || (!min && temp > val))){
-        init = true;
-        val = temp;
-        nextr1 = i;
-        nextc1 = j;
-      }
-    }
-  }
-  if(init){
-    sel->r1 = nextr1;
-    sel->c1 = nextc1;
-    sel->r2 = sel->c2 = -1;
-  }
-}
-
-bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
-  printf("%d, %d : %d, %d\n", sel->r1, sel->r2, sel->c1, sel->c2);
-  int r1 = sel->r1;
-  int c1 = sel->c1;
-  int r2 = (sel->r2 == -1) ? r1 : sel->r2;
-  int c2 = (sel->c2 == -1) ? c1 : sel->c2;
-  if(r1 == 0){
-    r1 = 1;
-    r2 = tab->len - 1;
-  }
-  if(c1 == 0){
-    c1 = 1;
-    c2 = SROW(0).len;
-  }
-  bool isQuoted = false, done = false;
-  char *str = malloc(1);
+bool getCmdStr(char *cmd, char *str){
   str[0] = '\0';
-  if(!str)
-    return false;
+  bool isQuoted = false;
   int i = strlen("[find "), j = 0;
   while(cmd[i]){
     if(cmd[i] == '"')
@@ -549,6 +507,64 @@ bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
     i++;
   }
   str[j] = '\0';
+  return true;
+}
+
+void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2){
+  *r1 = sel->r1;
+  *c1 = sel->c1;
+  *r2 = (sel->r2 == -1) ? *r1 : sel->r2;
+  *c2 = (sel->c2 == -1) ? *c1 : sel->c2;
+  if(*r1 == 0){
+    *r1 = 1;
+    *r2 = tab->len - 1;
+  }
+  if(*c1 == 0){
+    *c1 = 1;
+    *c2 = SROW(0).len;
+  }
+}
+
+//bool min is false for "max", true for "min"
+void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min){
+  int r1, c1, r2, c2;
+  parseSel(tab, sel, &r1, &c1, &r2, &c2);
+  /*
+  int r2 = (sel->r2 == 0) ? tab->len : sel->r2 + 1;
+  int c2 = (sel->c2 == 0) ? SROW(0).len : sel->c2 + 1;
+  */
+  int nextr1, nextc1;
+  double val;
+  bool init = false;
+  for(int i = /*sel->*/r1; i < r2; i++){
+    for(int j = /*sel->*/c1; j < c2; j++){
+      char *todptr = NULL;
+      double temp = strtod(CONT(i - 1, j - 1), &todptr);
+      if(!todptr[0] && (!init || (min && temp < val) || (!min && temp > val))){
+        init = true;
+        val = temp;
+        nextr1 = i;
+        nextc1 = j;
+      }
+    }
+  }
+  if(init){
+    sel->r1 = nextr1;
+    sel->c1 = nextc1;
+    sel->r2 = sel->c2 = -1;
+  }
+}
+
+bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
+  //printf("%d, %d : %d, %d\n", sel->r1, sel->r2, sel->c1, sel->c2);
+  int r1, c1, r2, c2;
+  parseSel(tab, sel, &r1, &c1, &r2, &c2);
+  char *str = malloc(1);
+  if(!str)
+    return false;
+  if(!getCmdStr(cmd, str))
+    return false;
+  bool done = false;
   for(int i = r1; i <= r2 && !done; i++){
     for(int j = c1; j <= c2 && !done; j++){
       if(strstr(CONT(i - 1, j - 1), str)){
