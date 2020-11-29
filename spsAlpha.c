@@ -71,6 +71,16 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel);
 int contEdit(char *cmd, tab_t *tab, cellSel_t *sel);
 int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]);
 int freeAndErr(tab_t *tab, int errCode, char *tempVar[10]);
+bool getCmdStr(char *cmd, char *str);
+void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2);
+void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min);
+bool findStr(char *cmd, tab_t *tab, cellSel_t *sel);
+int digitsCt(int n);
+bool setFn(char *cmd, tab_t *tab, cellSel_t sel);
+bool clearFn(tab_t *tab, cellSel_t sel);
+void swapFn(char *cmd, tab_t *tab, cellSel_t sel);
+bool lenFn(char *cmd, tab_t *tab, cellSel_t sel);
+int sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel);
 
 /*
 ** "Main" function
@@ -309,6 +319,13 @@ bool isEscaped(char *str, int charPlc){
   return ((i - 1) % 2 != 0) ? true : false;
 }
 
+//Recursively counts the digits of a number
+int digitsCt(int n){
+  if(!n)
+    return 0;
+  return 1 + digitsCt(n / 10);
+}
+
 /*
 ** General working with the table
 */
@@ -444,6 +461,47 @@ char *getCmd(char *argv[], int cmdPlc, int cmdNum){
   return &argv[cmdPlc][i]; 
 }
 
+void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2){
+  *r1 = sel->r1;
+  *c1 = sel->c1;
+  *r2 = (sel->r2 == -1) ? *r1 : sel->r2;
+  *c2 = (sel->c2 == -1) ? *c1 : sel->c2;
+  if(*r1 == 0){
+    *r1 = 1;
+    *r2 = tab->len - 1;
+  }
+  if(*c1 == 0){
+    *c1 = 1;
+    *c2 = SROW(0).len;
+  }
+}
+
+//Used for commands "find" and "set". Used to get the string to find or set
+bool getCmdStr(char *cmd, char *str){
+  str[0] = '\0';
+  bool isQuoted = false;
+  int i = (cmd[0] == '[') ? strlen("[find ") : strlen("set ");
+  int j = 0;
+  while(cmd[i]){
+    if(cmd[i] == '"')
+      isQuoted = !isQuoted;
+    else if(cmd[i] == ']' && !isQuoted && !isEscaped(cmd, i + 1))
+      break;
+    else{
+      char *p = realloc(str, ++j + 1);
+      if(!p){
+        free(str);
+        return false;
+      }
+      str = p;
+      str[j - 1] = cmd[i];
+    }
+    i++;
+  }
+  str[j] = '\0';
+  return true;
+}
+
 /*
 ** Executing the entered commands
 */
@@ -483,105 +541,6 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
   //freeTempVars(tempVar);
   return 0;
 }
-
-
-
-bool getCmdStr(char *cmd, char *str){
-  str[0] = '\0';
-  bool isQuoted = false;
-  int i = (cmd[0] == '[') ? strlen("[find ") : strlen("set ");
-  int j = 0;
-  while(cmd[i]){
-    if(cmd[i] == '"')
-      isQuoted = !isQuoted;
-    else if(cmd[i] == ']' && !isQuoted && !isEscaped(cmd, i + 1))
-      break;
-    else{
-      char *p = realloc(str, ++j + 1);
-      if(!p){
-        free(str);
-        return false;
-      }
-      str = p;
-      str[j - 1] = cmd[i];
-    }
-    i++;
-  }
-  str[j] = '\0';
-  return true;
-}
-
-void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2){
-  *r1 = sel->r1;
-  *c1 = sel->c1;
-  *r2 = (sel->r2 == -1) ? *r1 : sel->r2;
-  *c2 = (sel->c2 == -1) ? *c1 : sel->c2;
-  if(*r1 == 0){
-    *r1 = 1;
-    *r2 = tab->len - 1;
-  }
-  if(*c1 == 0){
-    *c1 = 1;
-    *c2 = SROW(0).len;
-  }
-}
-
-//bool min is false for "max", true for "min"
-void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min){
-  int r1, c1, r2, c2;
-  parseSel(tab, sel, &r1, &c1, &r2, &c2);
-  /*
-  int r2 = (sel->r2 == 0) ? tab->len : sel->r2 + 1;
-  int c2 = (sel->c2 == 0) ? SROW(0).len : sel->c2 + 1;
-  */
-  int nextr1, nextc1;
-  double val;
-  bool init = false;
-  for(int i = /*sel->*/r1; i < r2; i++){
-    for(int j = /*sel->*/c1; j < c2; j++){
-      char *todptr = NULL;
-      double temp = strtod(CONT(i - 1, j - 1), &todptr);
-      if(!todptr[0] && (!init || (min && temp < val) || (!min && temp > val))){
-        init = true;
-        val = temp;
-        nextr1 = i;
-        nextc1 = j;
-      }
-    }
-  }
-  if(init){
-    sel->r1 = nextr1;
-    sel->c1 = nextc1;
-    sel->r2 = sel->c2 = -1;
-  }
-}
-
-bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
-  //printf("%d, %d : %d, %d\n", sel->r1, sel->r2, sel->c1, sel->c2);
-  int r1, c1, r2, c2;
-  parseSel(tab, sel, &r1, &c1, &r2, &c2);
-  char *str = malloc(1);
-  if(!str)
-    return false;
-  if(!getCmdStr(cmd, str))
-    return false;
-  bool done = false;
-  for(int i = r1; i <= r2 && !done; i++){
-    for(int j = c1; j <= c2 && !done; j++){
-      if(strstr(CONT(i - 1, j - 1), str)){
-        sel->r1 = i;
-        sel->c1 = j;
-        sel->r2 = sel->c2 = -1;
-        done = true;
-      }
-    }
-  }
-  free(str);
-  return true;
-}
-
-
-
 
 //Checks, if the actual command is a selection command. If so, it parses it and
 //writes it into the "sel" structure, which stands for "selection command"
@@ -625,6 +584,85 @@ int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel){
   return 1;
 }
 
+//Function responsible for working with temporary variables that the user can
+//work with
+bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *tab){
+  int var;
+  if(cmdLen < 6) 
+    return 0;
+  if((cmd[6] == '\0' || cmd[6] == ';') && cmd[5] >= '0' && cmd[5] <= '9'){
+    var = cmd[5] - '0';
+    if(sel.r2 > 0 || sel.c2 > 0 || sel.r1 < 1 || sel.c1 < 1) 
+      return 0;
+    if(strstr(cmd, "def _") == cmd){
+      char *p = realloc(tempVar[var], SCELL(sel.r1 - 1, sel.c1 - 1).len + 1);
+      if(!p) 
+        return 0;
+      tempVar[var] = p;
+      strcpy(tempVar[var], CONT(sel.r1 - 1, sel.c1 - 1));
+    }else if(strstr(cmd, "use _") == cmd){
+      int len = strlen(tempVar[var]) + 1;
+      if(len != SCELL(sel.r1 - 1, sel.c1 - 1).len)
+        reallocCont(tab, sel.r1, sel.c1, len - SCELL(sel.r1 - 1, sel.c1 - 1).len);
+      strcpy(CONT(sel.r1 - 1, sel.c1 - 1), tempVar[var]);
+    }else if(strstr(cmd, "inc _") == cmd){
+      char *todptr;
+      double val = strtod(tempVar[var], &todptr);
+      if(todptr && todptr[0] != '\0') 
+        val = 0;
+      sprintf(tempVar[var], "%g", ++val);
+    }
+  }
+  return 0;
+}
+
+//Executing the table editing commands - arow, irow, drow, icol, acol, dcol
+int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
+  if(sel.r2 != -1 || sel.c2 != -1)
+    return 0;
+  if(cmdLen == 4 && (cmd[4] == '\0' || cmd[4] == ';')){
+    if(strstr(cmd, "irow") == cmd){
+      if(!editTableRows(tab, sel.r1 - 1, 1))
+        return -1;
+    }else if(strstr(cmd, "arow") == cmd){
+      if(!editTableRows(tab, sel.r1, 1))
+        return -1;
+    }else if(strstr(cmd, "drow") == cmd){
+      if(!editTableRows(tab, sel.r1, -1))
+        return -1;
+    }else if(strstr(cmd, "icol") == cmd){
+      if(!editTableCols(tab, 0, sel.c1, 1))
+        return -1;
+    }else if(strstr(cmd, "acol") == cmd){
+      if(!editTableCols(tab, 0, sel.c1 + 1, 1))
+        return -1;
+    }else if(strstr(cmd, "dcol") == cmd)
+      if(!editTableCols(tab, 0, sel.c1, -1))
+        return -1;
+  }
+  return 0;
+}
+
+//Executing the content editing commands
+int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
+  if(cmd == strstr(cmd, "set ")){
+    if(!setFn(cmd, tab, *sel))
+      return false;
+  }else if(cmd == strstr(cmd, "clear") && (cmd[5] == '\0' || cmd[5] == ';')){
+    if(!clearFn(tab, *sel))
+      return false;
+  }else if(cmd == strstr(cmd, "swap [")){
+    swapFn(cmd, tab, *sel);
+  }else if(cmd == strstr(cmd, "len ")){
+    if(!lenFn(cmd, tab, *sel))
+      return false;
+  }else{
+    if(!sumAvgCt(cmd, tab, sel))
+      return false;
+  }
+  return 0;
+}
+
 //If there is a selection argument, this function parses it and returns it
 int getCellSelArg(char *cmd, int argNum){
   char *selArg = malloc(sizeof(char));
@@ -666,69 +704,54 @@ int getCellSelArg(char *cmd, int argNum){
   return arg;
 }
 
-//Function responsible for working with temporary variables that the user can
-//work with
-bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *tab){
-  int var;
-  if(cmdLen < 6) 
-    return 0;
-  if((cmd[6] == '\0' || cmd[6] == ';') && cmd[5] >= '0' && cmd[5] <= '9'){
-    var = cmd[5] - '0';
-    if(sel.r2 > 0 || sel.c2 > 0 || sel.r1 < 1 || sel.c1 < 1) 
-      return 0;
-    if(strstr(cmd, "def _") == cmd){
-      char *p = realloc(tempVar[var], SCELL(sel.r1 - 1, sel.c1 - 1).len + 1);
-      if(!p) 
-        return 0;
-      tempVar[var] = p;
-      strcpy(tempVar[var], CONT(sel.r1 - 1, sel.c1 - 1));
-    }else if(strstr(cmd, "use _") == cmd){
-      int tempVarLen = strlen(tempVar[var]) + 1;
-      if(tempVarLen != SCELL(sel.r1 - 1, sel.c1 - 1).len)
-        reallocCont(tab, sel.r1, sel.c1, tempVarLen - SCELL(sel.r1 - 1, sel.c1 - 1).len);
-      strcpy(CONT(sel.r1 - 1, sel.c1 - 1), tempVar[var]);
-    }else if(strstr(cmd, "inc _") == cmd){
-      char *todptr;
-      double val = strtod(tempVar[var], &todptr);
-      if(todptr && todptr[0] != '\0') 
-        val = 0;
-      sprintf(tempVar[var], "%g", ++val);
+//bool min is false for "max", true for "min"
+void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min){
+  int r1, c1, r2, c2;
+  parseSel(tab, sel, &r1, &c1, &r2, &c2);
+  int nextr1, nextc1;
+  double val;
+  bool init = false;
+  for(int i = r1; i < r2; i++){
+    for(int j = c1; j < c2; j++){
+      char *todptr = NULL;
+      double temp = strtod(CONT(i - 1, j - 1), &todptr);
+      if(!todptr[0] && (!init || (min && temp < val) || (!min && temp > val))){
+        init = true;
+        val = temp;
+        nextr1 = i;
+        nextc1 = j;
+      }
     }
   }
-  return 0;
-}
-
-//Executing the table editing commands - arow, irow, drow, icol, acol, dcol
-int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
-  if(sel.r2 != -1 || sel.c2 != -1)
-    return 0;
-  if(cmdLen == 4 && (cmd[4] == '\0' || cmd[4] == ';')){
-    if(strstr(cmd, "irow") == cmd){
-      if(!editTableRows(tab, sel.r1 - 1, 1))
-        return -1;
-    }else if(strstr(cmd, "arow") == cmd){
-      if(!editTableRows(tab, sel.r1, 1))
-        return -1;
-    }else if(strstr(cmd, "drow") == cmd){
-      if(!editTableRows(tab, sel.r1, -1))
-        return -1;
-    }else if(strstr(cmd, "icol") == cmd){
-      if(!editTableCols(tab, 0, sel.c1, 1))
-        return -1;
-    }else if(strstr(cmd, "acol") == cmd){
-      if(!editTableCols(tab, 0, sel.c1 + 1, 1))
-        return -1;
-    }else if(strstr(cmd, "dcol") == cmd)
-      if(!editTableCols(tab, 0, sel.c1, -1))
-        return -1;
+  if(init){
+    sel->r1 = nextr1;
+    sel->c1 = nextc1;
+    sel->r2 = sel->c2 = -1;
   }
-  return 0;
 }
 
-int digitsCt(int n){
-  if(!n)
-    return 0;
-  return 1 + digitsCt(n / 10);
+bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
+  //printf("%d, %d : %d, %d\n", sel->r1, sel->r2, sel->c1, sel->c2);
+  int r1, c1, r2, c2;
+  parseSel(tab, sel, &r1, &c1, &r2, &c2);
+  char *str = malloc(1);
+  if(!str)
+    return false;
+  if(!getCmdStr(cmd, str))
+    return false;
+  bool done = false;
+  for(int i = r1; i <= r2 && !done; i++){
+    for(int j = c1; j <= c2 && !done; j++){
+      if(strstr(CONT(i - 1, j - 1), str)){
+        sel->r1 = i;
+        sel->c1 = j;
+        sel->r2 = sel->c2 = -1;
+        done = true;
+      }
+    }
+  }
+  free(str);
+  return true;
 }
 
 bool setFn(char *cmd, tab_t *tab, cellSel_t sel){
@@ -813,30 +836,7 @@ int sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel){
     if(!isCellSel(cmd + strlen("sum "), tab, &cmdSel, NULL))
       return 0;
   sprintf(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1), "%g", val);
-  SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
+  SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = 
+    strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
   return 1;
-}
-
-
-
-//Executing the content editing commands
-int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
-  if(cmd == strstr(cmd, "set ")){
-    if(!setFn(cmd, tab, *sel))
-      return false;
-  }else if(cmd == strstr(cmd, "clear") && (cmd[5] == '\0' || cmd[5] == ';')){
-    if(!clearFn(tab, *sel))
-      return false;
-  }else if(cmd == strstr(cmd, "swap [")){
-    swapFn(cmd, tab, *sel);
-  }else if(cmd == strstr(cmd, "len ")){
-    if(!lenFn(cmd, tab, *sel))
-      return false;
-  }else{
-    if(!sumAvgCt(cmd, tab, sel))
-      return false;
-  }
-
-
-  return 0;
 }
