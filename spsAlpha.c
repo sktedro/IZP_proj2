@@ -61,6 +61,7 @@ bool isDel(char *c, char *del);
 int getTab(char *argv[], tab_t *tab, char *del);
 int getMaxCols(tab_t *tab);
 bool addCols(tab_t *tab);
+bool addSelectedCols(tab_t *tab, cellSel_t *sel);
 int getCellSelArg(char *cmd, int argNum);
 int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel);
 bool isEscaped(char *str, int charPlc);
