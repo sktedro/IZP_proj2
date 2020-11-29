@@ -171,11 +171,9 @@ bool editTableCols(tab_t *tab, int rowN, int from, int by){
       if(!editTableRows(tab, i, -1))
         return false;
     }else if(by > 0){
-      if(from >= SROW(i - 1).len)
-        from = SROW(i - 1).len + 1;
       if(!reallocCells(tab, i, newCellN))
         return false;
-      if(from < SROW(i - 1).len - by)
+      if(from < SROW(i - 1).len - by + 1)
         for(int j = (SROW(i - 1).len - 1); j + 1 > from; j--)
           SCELL(i - 1, j) = SCELL(i - 1, j - by);
       for(int j = from; j < from + by; j++)
@@ -395,6 +393,21 @@ bool addCols(tab_t *tab){
   return true;
 }
 
+//If a selection lands on a cell that isn't a part of the table, this functions
+//adds necessary rows and columns
+bool addSelectedCols(tab_t *tab, cellSel_t *sel){
+  int maxr = (sel->r1 > sel->r2) ? sel->r1 : sel->r2;
+  int maxc = (sel->c1 > sel->c2) ? sel->c1 : sel->c2;
+  if(tab->len - 1 < maxr)
+    if(!editTableRows(tab, tab->len - 1, maxr - tab->len + 1))
+      return false;
+  addCols(tab);
+  if(SROW(0).len < maxc)
+    if(!editTableCols(tab, 0, SROW(0).len + 1, maxc - SROW(0).len))
+      return false;
+  return true;
+}
+
 //Returns the biggest amount of columns in a row
 int getMaxCols(tab_t *tab){
   int max = 0;
@@ -580,6 +593,8 @@ int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel){
     }else
       sel->r2 = sel->c2 = -1;
     //printf("\n");
+    if(!addSelectedCols(tab, sel))
+      return -4;
   }
   return 1;
 }
@@ -642,7 +657,6 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
   }
   return 0;
 }
-
 //Executing the content editing commands
 int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   if(cmd == strstr(cmd, "set ")){
@@ -662,6 +676,11 @@ int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   }
   return 0;
 }
+
+
+/*
+** Additional functions for executing entered commands
+*/
 
 //If there is a selection argument, this function parses it and returns it
 int getCellSelArg(char *cmd, int argNum){
@@ -791,7 +810,7 @@ bool lenFn(char *cmd, tab_t *tab, cellSel_t sel){
     if(len != digits + 1)
       if(!reallocCont(tab, lenSel.r1, lenSel.c1, -(len + digits + 1)))
         return false;
-    sprintf(CONT(lenSel.r1 - 1, lenSel.c1 - 1), "%d", digits);
+    sprintf(CONT(lenSel.r1 - 1, lenSel.c1 - 1), "%d", len);
     SCELL(lenSel.r1 - 1, lenSel.c1 - 1).len = digitsCt(digits) + 1;
   }
   return true;
