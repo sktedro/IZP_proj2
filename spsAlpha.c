@@ -68,7 +68,7 @@ char *getCmd(char *argv[], int cmdPlc, int cmdNum);
 bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *tab);
 bool allocTempVars(char *tempVar[10]);
 int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel);
-int contEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel);
+int contEdit(char *cmd, tab_t *tab, cellSel_t *sel);
 int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]);
 int freeAndErr(tab_t *tab, int errCode, char *tempVar[10]);
 
@@ -478,7 +478,7 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
     //Exectution:
     tempVarFn(cmd, cmdLen, tempVar, sel, tab);
     tabEdit(cmd, cmdLen, tab, sel);
-    contEdit(cmd, cmdLen, tab, sel);
+    contEdit(cmd, tab, &sel);
   }
   //freeTempVars(tempVar);
   return 0;
@@ -489,7 +489,8 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
 bool getCmdStr(char *cmd, char *str){
   str[0] = '\0';
   bool isQuoted = false;
-  int i = strlen("[find "), j = 0;
+  int i = (cmd[0] == '[') ? strlen("[find ") : strlen("set ");
+  int j = 0;
   while(cmd[i]){
     if(cmd[i] == '"')
       isQuoted = !isQuoted;
@@ -724,9 +725,118 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
   return 0;
 }
 
+int digitsCt(int n){
+  if(!n)
+    return 0;
+  return 1 + digitsCt(n / 10);
+}
+
+bool setFn(char *cmd, tab_t *tab, cellSel_t sel){
+  int prevLen = SCELL(sel.r1 - 1, sel.c1 - 1).len;
+  if(prevLen != 1)
+    if(!reallocCont(tab, sel.r1, sel.c1, -(prevLen - 1)))
+      return false;
+  if(!getCmdStr(cmd, CONT(sel.r1 - 1, sel.c1 - 1)))
+    return false;
+  SCELL(sel.r1 - 1, sel.c1 - 1).len = strlen(CONT(sel.r1 - 1, sel.c1 - 1)) + 1;
+  return true;
+}
+
+bool clearFn(tab_t *tab, cellSel_t sel){ 
+  int prevLen = SCELL(sel.r1 - 1, sel.c1 - 1).len;
+  if(prevLen != 1)
+    if(!reallocCont(tab, sel.r1, sel.c1, -(prevLen - 1)))
+      return false;
+  SCONT(sel.r1 - 1, sel.c1 - 1, 0) = '\0';
+  return true;
+}
+
+void swapFn(char *cmd, tab_t *tab, cellSel_t sel){
+  cellSel_t swapSel;
+  if(isCellSel(cmd + strlen("swap "), tab, &swapSel, NULL)){
+    cell_t temp = SCELL(sel.r1 - 1, sel.c1 - 1);
+    SCELL(sel.r1 - 1, sel.c1 - 1) = SCELL(swapSel.r1 - 1, swapSel.c1 - 1);
+    SCELL(swapSel.r1 - 1, swapSel.c1 - 1) = temp;
+  }
+}
+
+bool lenFn(char *cmd, tab_t *tab, cellSel_t sel){
+  cellSel_t lenSel;
+  if(isCellSel(cmd + strlen("len "), tab, &lenSel, NULL)){
+    int len = strlen(CONT(sel.r1 - 1, sel.c1 - 1));
+    int digits = digitsCt(len);
+    if(len != digits + 1)
+      if(!reallocCont(tab, lenSel.r1, lenSel.c1, -(len + digits + 1)))
+        return false;
+    sprintf(CONT(lenSel.r1 - 1, lenSel.c1 - 1), "%d", digits);
+    SCELL(lenSel.r1 - 1, lenSel.c1 - 1).len = digitsCt(digits) + 1;
+  }
+  return true;
+}
+
+int sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel){
+  int cmdParsed = 0;
+  if(cmd == strstr(cmd, "sum ["))
+    cmdParsed = 1;
+  else if(cmd == strstr(cmd, "avg ["))
+    cmdParsed = 2;
+  else if(cmd == strstr(cmd, "count ["))
+    cmdParsed = 3;
+  else
+    return 0;
+  int r1, c1, r2, c2;
+  parseSel(tab, sel, &r1, &c1, &r2, &c2);
+  double val = 0;
+  double count = 0;
+  for(int i = r1; i <= r2; i++){
+    for(int j = c1; j <= c2; j++){
+      char *todptr = NULL;
+      double temp = strtod(CONT(i - 1, j - 1), &todptr);
+      if(!todptr[0] && SCONT(i - 1, j - 1, 0)){
+        if(cmdParsed != 3)
+          val += temp;
+        if(cmdParsed != 1)
+          count++;
+      }
+    }
+  }
+  cellSel_t cmdSel;
+  if(cmdParsed == 2){
+    val /= count;
+    if(!isCellSel(cmd + strlen("avg "), tab, &cmdSel, NULL))
+      return 0;
+  }else if(cmdParsed == 3){
+    val = count;
+    if(!isCellSel(cmd + strlen("count "), tab, &cmdSel, NULL))
+      return 0;
+  }else if(cmdParsed == 1)
+    if(!isCellSel(cmd + strlen("sum "), tab, &cmdSel, NULL))
+      return 0;
+  sprintf(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1), "%g", val);
+  SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
+  return 1;
+}
+
+
+
 //Executing the content editing commands
-int contEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
-  (void) cmd; (void) cmdLen; (void) tab; (void) sel;
+int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
+  if(cmd == strstr(cmd, "set ")){
+    if(!setFn(cmd, tab, *sel))
+      return false;
+  }else if(cmd == strstr(cmd, "clear") && (cmd[5] == '\0' || cmd[5] == ';')){
+    if(!clearFn(tab, *sel))
+      return false;
+  }else if(cmd == strstr(cmd, "swap [")){
+    swapFn(cmd, tab, *sel);
+  }else if(cmd == strstr(cmd, "len ")){
+    if(!lenFn(cmd, tab, *sel))
+      return false;
+  }else{
+    if(!sumAvgCt(cmd, tab, sel))
+      return false;
+  }
+
 
   return 0;
 }
