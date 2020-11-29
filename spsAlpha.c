@@ -15,7 +15,6 @@
 
 #define perr(X)           fprintf(stderr, X)
 
-
 typedef struct{
   char *cont;
   int len;
@@ -59,11 +58,11 @@ int checkArgs(int argc, char *argv[]);
 char *getDel(char *argv[]);
 int getCmdPlc(char *argv[]);
 bool isDel(char *c, char *del);
-bool getTab(char *argv[], tab_t *tab, char *del);
+int getTab(char *argv[], tab_t *tab, char *del);
 int getMaxCols(tab_t *tab);
 bool addCols(tab_t *tab);
 int getCellSelArg(char *cmd, int argNum);
-int isCellSel(char *cmd, cellSel_t *sel, cellSel_t *tempSel);
+int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel);
 bool isEscaped(char *str, int charPlc);
 char *getCmd(char *argv[], int cmdPlc, int cmdNum);
 bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *tab);
@@ -88,8 +87,9 @@ int main(int argc, char *argv[]){
   if(!allocTempVars(tempVar)) 
     return errFn(-4);
   tab_t tab;
-  if(!getTab(argv, &tab, del)) 
-    return freeAndErr(&tab, -4, tempVar);
+  errCode = getTab(argv, &tab, del);
+  if(errCode) 
+    return freeAndErr(&tab, errCode, tempVar);
   if(!addCols(&tab)) 
     return freeAndErr(&tab, -4, tempVar);
   errCode = execCmds(argv, cmdPlc, &tab, tempVar);
@@ -104,6 +104,7 @@ int main(int argc, char *argv[]){
 ** Free and allocation functions
 */
 
+//Frees the memory allocated for the table and temporary variables
 void freeTab(tab_t *tab, char *tempVar[10]){
   for(int i = tab->len - 1; i >= 0; i--)
     freeRow(tab, i);
@@ -111,14 +112,12 @@ void freeTab(tab_t *tab, char *tempVar[10]){
   for(int i = 0; i < 10; i++)
     free(tempVar[i]);
 }
-
 void freeRow(tab_t *tab, int rowN){
   for(int j = SROW(rowN).len - 1; j >= 0; j--)
     freeCell(tab, rowN, j);
   free(CELL(rowN));
   tab->len--;
 }
-
 void freeCell(tab_t *tab, int rowN, int cellN){
   free(CONT(rowN, cellN));
   SROW(rowN).len--;
@@ -209,12 +208,12 @@ bool mallocCont(tab_t *tab, int rowN, int cellN, int cellcN){
 }
 
 //Reallocate space for rows in the table
-bool reallocRows(tab_t *tab, int nextSize){
-  row_t *p = realloc(ROW, (nextSize)*sizeof(row_t));
+bool reallocRows(tab_t *tab, int newSize){
+  row_t *p = realloc(ROW, newSize*sizeof(row_t));
   if(!p) 
     return false;
   ROW = p;
-  tab->len = nextSize; 
+  tab->len = newSize; 
   return true;
 }
 
@@ -279,6 +278,9 @@ int errFn(int errCode){
       break;
     case -6:
       perr("Numbers in entered selection commands have to be bigger than 0.");
+      break;
+    case -7:
+      perr("You cannot escape the EOL character.");
   }
   perr(" The program will now exit.\n");
   return -errCode;
@@ -300,14 +302,11 @@ bool isDel(char *c, char *del){
 
 //Checks, if a character is escaped or not
 bool isEscaped(char *str, int charPlc){
-  int i = 0;
-  while((charPlc - i) > 0 && str[charPlc - i - 1] == backslash){
-    i++;
-    //printf("<%d>\n", i);
-  }
-  if(i % 2)
-    return true;
-  return false;
+  if(!str)
+    return false;
+  int i = 1;
+  for(; (charPlc - i) > 0 && str[charPlc - i - 1] == backslash; i++){}
+  return ((i - 1) % 2 != 0) ? true : false;
 }
 
 /*
@@ -315,49 +314,44 @@ bool isEscaped(char *str, int charPlc){
 */
 
 //Allocates space for the whole table and writes the table into the memory
-bool getTab(char *argv[], tab_t *tab, char *del){
+int getTab(char *argv[], tab_t *tab, char *del){
   ROW = malloc(sizeof(row_t));
   if(!ROW) 
-    return false;
+    return -4;
   tab->len = 1;
   if(!mallocCell(tab, 1, 1))
-    return false;
-  FILE *tabFile = fopen(argv[!strcmp(argv[1], "-d") ? 4 : 2], "r");
+    return -4;
+  FILE *tabFile = fopen(argv[getCmdPlc(argv) + 1], "r");
   //If there are delimiters entered, filename will be as the 4th argument
   int rowN = 1, cellN = 1, cellcN = 1;
   char tempC = '\0';
   bool quoted = false/*, makeQuoted = false*/;
   for(int i = 0; tempC != EOF; i++){
-    bool skip = false;
     tempC = fgetc(tabFile);
-    if(tempC == '"') quoted = quoted ? false : true;
-    if(!quoted){
-      //if(tempC == backslash)
-        //makeQuoted = true;
-      if(tempC == '\n'){
-        rowN++;
-        cellN = 1;
-        cellcN = 1;
-        skip = true;
-        if(!editTableRows(tab, -1, 1))
-          return false;
-      }else if(isDel(&tempC, del)){
-        cellN++;
-        cellcN = 1;
-        skip = true;
-        if(!editTableCols(tab, rowN, cellN, 1))
-          return false;
-      }
-    }
-    if(!skip){
+    if(tempC == '\n'){
+      if(quoted)
+        return -7;
+      rowN++;
+      cellN = cellcN = 1;
+      if(!editTableRows(tab, -1, 1))
+        return -4;
+    }else if(!quoted && isDel(&tempC, del) 
+        && !isEscaped(CONT(rowN - 1, cellN - 1), cellcN)){
+      cellN++;
+      cellcN = 1;
+      if(!editTableCols(tab, rowN, cellN, 1))
+        return -4;
+    }else{
+      if(tempC == '"') 
+        quoted = !quoted;
       cellcN++;
       SCONT(rowN - 1, cellN - 1, cellcN - 2) = tempC;
       if(!reallocCont(tab, rowN, cellN, 1))
-        return false;
+        return -4;
     }
   }
   fclose(tabFile);
-  return true;
+  return 0;
 }
 
 //Prints the characters of the table one by one
@@ -384,8 +378,7 @@ bool addCols(tab_t *tab){
   return true;
 }
 
-//Checks the table to get a number of how many columns there are in a row with
-//the highest number of columns
+//Returns the biggest amount of columns in a row
 int getMaxCols(tab_t *tab){
   int max = 0;
   for(int i = 1; i < tab->len; i++)
@@ -412,7 +405,7 @@ int checkArgs(int argc, char *argv[]){
   return 0;
 }
 
-//Get delimiters. If there are none entered, space is a delimiter
+//Get delimiters. If there are none entered, space is the delimiter
 char *getDel(char *argv[]){
   if(!strcmp(argv[1], "-d"))
     return argv[2];
@@ -431,12 +424,11 @@ char *getCmd(char *argv[], int cmdPlc, int cmdNum){
   int actCmdNum = 1;
   int i = 0;
   while(argv[cmdPlc][i]){
-    bool isQuoted = false;
+    bool quoted = false;
     bool isProperDelim = false;
-    if(argv[cmdPlc][i] == '"' && !isEscaped(argv[cmdPlc], i))
-      isQuoted = isQuoted ? false : true;
-    //else if(argv[cmdPlc][i] == ';' && !isQuoted){
-    else if(argv[cmdPlc][i] == ';' && !isQuoted && !isEscaped(argv[cmdPlc], i))
+    if(argv[cmdPlc][i] == '"')
+      quoted = !quoted;
+    else if(argv[cmdPlc][i] == ';' && !quoted && !isEscaped(argv[cmdPlc], i))
       isProperDelim = true;
     //TODO alebo to staci??
     if(isProperDelim)
@@ -465,17 +457,18 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
   cellSel_t tempSel = {-1, -1, -1, -1};
   while(1){
     //Getting next command:
+    addCols(tab);
     cmdNum++;
     cmd = getCmd(argv, cmdPlc, cmdNum);
     cmdLen = getCmd(argv, cmdPlc, cmdNum + 1) - cmd;
-    if(cmd == NULL)
+    if(!cmd)
       break;
     if(cmd != argv[cmdPlc]){
       cmd++; //If this is not the first cmd, skip the delim
       cmdLen--; //And dont count the delim as part of the command
     }
     //Selection:
-    int isCellSelRet = isCellSel(cmd, &sel, &tempSel);
+    int isCellSelRet = isCellSel(cmd, tab, &sel, &tempSel);
     if(isCellSelRet < 0){
       //freeTempVars(tempVar);
       return isCellSelRet; //Err
@@ -491,41 +484,127 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
   return 0;
 }
 
-//Checks, if the actual commdn is a selection command. If so, it parses it and
+
+
+//bool min is false for "max", true for "min"
+void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min){
+  int r2 = (sel->r2 == 0) ? tab->len : sel->r2 + 1;
+  int c2 = (sel->c2 == 0) ? SROW(0).len : sel->c2 + 1;
+  int nextr1, nextc1;
+  double val;
+  bool init = false;
+  for(int i = sel->r1; i < r2; i++){
+    for(int j = sel->c1; j < c2; j++){
+      char *todptr = NULL;
+      double temp = strtod(CONT(i - 1, j - 1), &todptr);
+      if(!todptr[0] && (!init || (min && temp < val) || (!min && temp > val))){
+        init = true;
+        val = temp;
+        nextr1 = i;
+        nextc1 = j;
+      }
+    }
+  }
+  if(init){
+    sel->r1 = nextr1;
+    sel->c1 = nextc1;
+    sel->r2 = sel->c2 = -1;
+  }
+}
+
+bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
+  printf("%d, %d : %d, %d\n", sel->r1, sel->r2, sel->c1, sel->c2);
+  int r1 = sel->r1;
+  int c1 = sel->c1;
+  int r2 = (sel->r2 == -1) ? r1 : sel->r2;
+  int c2 = (sel->c2 == -1) ? c1 : sel->c2;
+  if(r1 == 0){
+    r1 = 1;
+    r2 = tab->len - 1;
+  }
+  if(c1 == 0){
+    c1 = 1;
+    c2 = SROW(0).len;
+  }
+  bool isQuoted = false, done = false;
+  char *str = malloc(1);
+  str[0] = '\0';
+  if(!str)
+    return false;
+  int i = strlen("[find "), j = 0;
+  while(cmd[i]){
+    if(cmd[i] == '"')
+      isQuoted = !isQuoted;
+    else if(cmd[i] == ']' && !isQuoted && !isEscaped(cmd, i + 1))
+      break;
+    else{
+      char *p = realloc(str, ++j + 1);
+      if(!p){
+        free(str);
+        return false;
+      }
+      str = p;
+      str[j - 1] = cmd[i];
+    }
+    i++;
+  }
+  str[j] = '\0';
+  for(int i = r1; i <= r2 && !done; i++){
+    for(int j = c1; j <= c2 && !done; j++){
+      if(strstr(CONT(i - 1, j - 1), str)){
+        sel->r1 = i;
+        sel->c1 = j;
+        sel->r2 = sel->c2 = -1;
+        done = true;
+      }
+    }
+  }
+  free(str);
+  return true;
+}
+
+
+
+
+//Checks, if the actual command is a selection command. If so, it parses it and
 //writes it into the "sel" structure, which stands for "selection command"
-int isCellSel(char *cmd, cellSel_t *sel, cellSel_t *tempSel){
-  if(cmd[0] != '[' || cmd[1] == 'f' || cmd[1] == 'm')
+int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel){
+  if(cmd[0] != '[')
     return 0; //Not a selection command
-  if(cmd[1] == 's'){
-    if(strstr(cmd, "[set]") == cmd && (cmd[5] == ';' || cmd[5] == '\0'))
-      *tempSel = *sel;
-    return 1;
-  }
-  int args = 1;
-  for(int i = 0; cmd[i] != ']'; i++)
-    if(cmd[i] == ',')
-      args++;
-  if(args != 2 && args != 4)
-    return -6;
-  int argsArr[4];
-  for(int i = 0; i < args; i++){
-    argsArr[i] = getCellSelArg(cmd, i+1);
-    if(argsArr[i] == -4) return -4;
-    if(argsArr[i] == -1) return 0; //Argument is not a number and neither '_'
-    if(argsArr[i] == -6) return -6;
-  }
-  sel->r1 = argsArr[0];
-  sel->c1 = argsArr[1];
-  //printf("%d, %d; ", argsArr[0], argsArr[1]); 
-  if(args == 4){
-    sel->r2 = argsArr[2];
-    sel->c2 = argsArr[3];
-    //printf("%d, %d", argsArr[2], argsArr[3]); 
+  if(cmd == strstr(cmd, "[set]")){// == cmd && (cmd[5] == ';' || cmd[5] == '\0')){
+    memcpy(tempSel, sel, sizeof(cellSel_t));
+  }else if(cmd == strstr(cmd, "[_]")){
+    memcpy(sel, tempSel, sizeof(cellSel_t));
+  }else if(cmd == strstr(cmd, "[min]") || cmd == strstr(cmd, "[max]")){
+    getMinOrMax(tab, sel, cmd == strstr(cmd, "[min]"));
+  }else if(cmd == strstr(cmd, "[find ")){
+    if(!findStr(cmd, tab, sel))
+      return -4;
   }else{
-    sel->r2 = -1;
-    sel->c2 = -1;
+    int args = 1;
+    for(int i = 0; cmd[i] != ']' && cmd[i]; i++)
+      if(cmd[i] == ',')
+        args++;
+    if(args != 2 && args != 4)
+      return -6;
+    int argsArr[4];
+    for(int i = 0; i < args; i++){
+      argsArr[i] = getCellSelArg(cmd, i+1);
+      if(argsArr[i] == -4) return -4;
+      if(argsArr[i] == -1) return 0; //Argument is not a number and neither '_'
+      if(argsArr[i] == -6) return -6;
+    }
+    sel->r1 = argsArr[0];
+    sel->c1 = argsArr[1];
+    //printf("%d, %d; ", argsArr[0], argsArr[1]); 
+    if(args == 4){
+      sel->r2 = argsArr[2];
+      sel->c2 = argsArr[3];
+      //printf("%d, %d", argsArr[2], argsArr[3]); 
+    }else
+      sel->r2 = sel->c2 = -1;
+    //printf("\n");
   }
-  //printf("\n");
   return 1;
 }
 
@@ -625,7 +704,6 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
     }else if(strstr(cmd, "dcol") == cmd)
       if(!editTableCols(tab, 0, sel.c1, -1))
         return -1;
-    addCols(tab);
   }
   return 0;
 }
