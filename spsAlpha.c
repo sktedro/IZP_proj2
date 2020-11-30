@@ -101,12 +101,17 @@ bool parseTheTab(tab_t *tab){
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
       for(int k = 0; k < SCELL(i, j).len; k++){
-        if((SCONT(i, j, k) == backslash)
-            || (SCONT(i, j, k) == '"' && !isEscaped(CONT(i, j), k))){
+        if(SCONT(i, j, k) == backslash){
           for(int l = k; l < SCELL(i, j).len - 1; l++)
             SCONT(i, j, l) = SCONT(i, j, l + 1);
           if(!reallocCont(tab, i + 1, j + 1, -1))
             return false;
+        }else if(SCONT(i, j, k) == '"'){
+          for(int l = k; l < SCELL(i, j).len - 1; l++)
+            SCONT(i, j, l) = SCONT(i, j, l + 1);
+          if(!reallocCont(tab, i + 1, j + 1, -1))
+            return false;
+          k--;
         }
       }
     }
@@ -120,9 +125,11 @@ bool prepTabForPrint(tab_t *tab, char *del){
       bool makeQuoted = false;
       for(int k = 0; k < SCELL(i, j).len; k++){
         for(int l = 0; del[l]; l++)
-          if(SCONT(i, j, k) == '"' || SCONT(i, j, k) == del[l])
+          if(SCONT(i, j, k) == del[l])
             makeQuoted = true;
-        if(SCONT(i, j, k) == backslash || SCONT(i, j, k) == '"'){
+        if(SCONT(i, j, k) == '"')
+          makeQuoted = true;
+        if(SCONT(i, j, k) == backslash || (SCONT(i, j, k) == '"' )){
           if(!reallocCont(tab, i + 1, j + 1, 1))
             return false;
           for(int l = SCELL(i, j).len - 1; l > k; l--)
