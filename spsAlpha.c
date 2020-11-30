@@ -72,12 +72,11 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel);
 int contEdit(char *cmd, tab_t *tab, cellSel_t *sel);
 int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]);
 int freeAndErr(tab_t *tab, int errCode, char *tempVar[10]);
-bool getCmdStr(char *cmd, char *str);
 void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2);
 void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min);
 bool findStr(char *cmd, tab_t *tab, cellSel_t *sel);
 int digitsCt(int n);
-bool setFn(char *cmd, tab_t *tab, cellSel_t sel);
+bool setStr(char *cmd, tab_t *tab, cellSel_t sel);
 bool clearFn(tab_t *tab, cellSel_t sel);
 void swapFn(char *cmd, tab_t *tab, cellSel_t sel);
 bool lenFn(char *cmd, tab_t *tab, cellSel_t sel);
@@ -90,7 +89,7 @@ bool prepTabForPrint(tab_t *tab, char *del);
 void checkTheTab(tab_t *tab){
   for(int i = 0; i < tab->len; i++){
     for(int j = 0; j < SROW(i).len; j++){
-      if(SCONT(i, j, SCELL(i, j).len) != '\0')
+      if(SCONT(i, j, SCELL(i, j).len - 1) != '\0')
         printf("<no null byte at %d, %d>\n", i+1, j+1);
       if(!CONT(i, j))
         printf("<Cell pointer is NULL %d, %d>\n", i+1, j+1);
@@ -161,39 +160,45 @@ int main(int argc, char *argv[]){
   char *tempVar[10] = {0};
   if(!allocTempVars(tempVar)) 
     return errFn(-4);
+
   tab_t tab;
   errCode = getTab(argv, &tab, del);
-  
-
   if(errCode) 
     return freeAndErr(&tab, errCode, tempVar);
   printf("Get the tab\n");
   checkTheTab(&tab);
+
   if(!addCols(&tab)) 
     return freeAndErr(&tab, -4, tempVar);
   printf("Add cols\n");
   checkTheTab(&tab);
+  
   if(!parseTheTab(&tab))
     return freeAndErr(&tab, -4, tempVar);
   printf("Parse the tab\n");
   checkTheTab(&tab);
+
   errCode = execCmds(argv, cmdPlc, &tab, tempVar);
   if(errCode) 
     return freeAndErr(&tab, errCode, tempVar);
   printf("Exec cmds\n");
   checkTheTab(&tab);
+
   if(!addCols(&tab)) 
     return freeAndErr(&tab, -4, tempVar);
   printf("Add columns\n");
   checkTheTab(&tab);
+
   if(!removeEmptyCols(&tab))
     return freeAndErr(&tab, -4, tempVar);
   printf("Remove empty columns\n");
   checkTheTab(&tab);
+
   if(!prepTabForPrint(&tab, del))
     return freeAndErr(&tab, -4, tempVar);
   printf("Prep tab for print\n");
   checkTheTab(&tab);
+
   printTab(&tab, del);
   freeTab(&tab, tempVar);
   return 0;
@@ -276,6 +281,7 @@ bool editTableCols(tab_t *tab, int rowN, int from, int by){
         SCELL(i - 1, j - 1) = SCELL(i - 1, j - 1 + (-by));
       if(!reallocCells(tab, i, newCellN))
         return false;
+
     }
   }
   return true;
@@ -598,31 +604,6 @@ void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2){
   }
 }
 
-//Used for commands "find" and "set". Used to get the string to find or set
-bool getCmdStr(char *cmd, char *str){
-  str[0] = '\0';
-  bool isQuoted = false;
-  int i = (cmd[0] == '[') ? strlen("[find ") : strlen("set ");
-  int j = 0;
-  while(cmd[i]){
-    if(cmd[i] == '"')
-      isQuoted = !isQuoted;
-    else if((cmd[i] == ']' || cmd[i] == ';') && !isQuoted && !isEscaped(cmd, i + 1))
-      break;
-    else{
-      char *p = realloc(str, ++j + 1);
-      if(!p){
-        free(str);
-        return false;
-      }
-      str = p;
-      str[j - 1] = cmd[i];
-    }
-    i++;
-  }
-  str[j] = '\0';
-  return true;
-}
 
 /*
 ** Executing the entered commands
@@ -672,6 +653,8 @@ int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel){
   if(cmd == strstr(cmd, "[set]")){// == cmd && (cmd[5] == ';' || cmd[5] == '\0')){
     memcpy(tempSel, sel, sizeof(cellSel_t));
   }else if(cmd == strstr(cmd, "[_]")){
+    if(tempSel->r1 < 1 || tempSel->c1 < 1)
+      return -4568;//TODO
     memcpy(sel, tempSel, sizeof(cellSel_t));
   }else if(cmd == strstr(cmd, "[min]") || cmd == strstr(cmd, "[max]")){
     getMinOrMax(tab, sel, cmd == strstr(cmd, "[min]"));
@@ -769,7 +752,7 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
 //Executing the content editing commands
 int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   if(cmd == strstr(cmd, "set ")){
-    if(!setFn(cmd, tab, *sel))
+    if(!setStr(cmd, tab, *sel))
       return false;
   }else if(cmd == strstr(cmd, "clear") && (cmd[5] == '\0' || cmd[5] == ';')){
     if(!clearFn(tab, *sel))
@@ -863,11 +846,29 @@ bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
   //printf("%d, %d : %d, %d\n", sel->r1, sel->r2, sel->c1, sel->c2);
   int r1, c1, r2, c2;
   parseSel(tab, sel, &r1, &c1, &r2, &c2);
+  bool isQuoted = false;
+  int i = strlen("[find "), j = 0;
   char *str = malloc(1);
   if(!str)
     return false;
-  if(!getCmdStr(cmd, str))
-    return false;
+  while(cmd[i]){
+    if(cmd[i] == '"')
+      isQuoted = !isQuoted;
+    else if((cmd[i] == ']' || cmd[i] == ';') && !isQuoted && !isEscaped(cmd, i + 1))
+      break;
+    else{
+      j++;
+      char *p = realloc(str, j + 1);
+      if(!p){
+        free(str);
+        return false;
+      }
+      str = p;
+      str[j - 1] = cmd[i];
+    }
+    i++;
+  }
+  str[j] = '\0';
   bool done = false;
   for(int i = r1; i <= r2 && !done; i++){
     for(int j = c1; j <= c2 && !done; j++){
@@ -884,13 +885,29 @@ bool findStr(char *cmd, tab_t *tab, cellSel_t *sel){
 }
 
 //Writes string into a selected cell
-bool setFn(char *cmd, tab_t *tab, cellSel_t sel){
+bool setStr(char *cmd, tab_t *tab, cellSel_t sel){
   int prevLen = SCELL(sel.r1 - 1, sel.c1 - 1).len;
+  bool isQuoted = false;
+  int i = strlen("set "), j = 0;
   if(prevLen != 1)
-    if(!reallocCont(tab, sel.r1, sel.c1, -(prevLen - 1)))
+    if(!reallocCont(tab, sel.r1, sel.c1, -(prevLen) + 1))
       return false;
-  if(!getCmdStr(cmd, CONT(sel.r1 - 1, sel.c1 - 1)))
-    return false;
+  while(cmd[i]){
+    if(cmd[i] == '"')
+      isQuoted = !isQuoted;
+    else if((cmd[i] == ']' || cmd[i] == ';') && !isQuoted && !isEscaped(cmd, i + 1))
+      break;
+    else{
+      j++;
+      char *p = realloc(CONT(sel.r1 - 1, sel.c1 - 1), j + 1);
+      if(!p)
+        return false;
+      CONT(sel.r1 - 1, sel.c1 - 1) = p;
+      SCONT(sel.r1 - 1, sel.c1 - 1, j - 1) = cmd[i];
+    }
+    i++;
+  }
+  SCONT(sel.r1 - 1, sel.c1 - 1, j) = '\0';
   SCELL(sel.r1 - 1, sel.c1 - 1).len = strlen(CONT(sel.r1 - 1, sel.c1 - 1)) + 1;
   return true;
 }
