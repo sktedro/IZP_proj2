@@ -77,10 +77,10 @@ void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min);
 bool findStr(char *cmd, tab_t *tab, cellSel_t *sel);
 int digitsCt(int n);
 bool setStr(char *cmd, tab_t *tab, cellSel_t sel);
-bool clearFn(tab_t *tab, cellSel_t sel);
+int clearFn(tab_t *tab, cellSel_t sel);
 void swapFn(char *cmd, tab_t *tab, cellSel_t sel);
 bool lenFn(char *cmd, tab_t *tab, cellSel_t sel);
-int sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel);
+bool sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel);
 
 bool removeEmptyCols(tab_t *tab);
 bool parseTheTab(tab_t *tab);
@@ -213,8 +213,9 @@ void freeTab(tab_t *tab, char *tempVar[10]){
   for(int i = tab->len - 1; i >= 0; i--)
     freeRow(tab, i);
   free(ROW);
-  for(int i = 0; i < 10; i++)
-    free(tempVar[i]);
+  if(tempVar)
+    for(int i = 0; i < 10; i++)
+      free(tempVar[i]);
 }
 void freeRow(tab_t *tab, int rowN){
   for(int j = SROW(rowN).len - 1; j >= 0; j--)
@@ -229,8 +230,10 @@ void freeCell(tab_t *tab, int rowN, int cellN){
 
 //Deleting or adding rows
 bool editTableRows(tab_t *tab, int from, int by){
+  printf("%d -> ", from);
   if(from < 0)
     from = tab->len;
+  printf("%d\n", from);
   if(by > 0){ //Inserting or adding rows
     if(!reallocRows(tab, (tab->len + by)))
       return false;
@@ -322,6 +325,18 @@ bool reallocRows(tab_t *tab, int newSize){
 
 //Reallocate space for columns in a row
 bool reallocCells(tab_t *tab, int rowN, int newSize){
+  /*
+  if(newSize == 1){
+    freeTab(tab, NULL);
+    ROW = malloc(sizeof(row_t));
+    if(!ROW) 
+      return false;
+    tab->len = 1;
+    if(!mallocCell(tab, 1, 1))
+      return false;
+    return true;
+  }
+  */
   cell_t *p = realloc(CELL(rowN - 1), newSize*sizeof(cell_t));
   if(!p) 
     return false;
@@ -384,6 +399,13 @@ int errFn(int errCode){
       break;
     case -7:
       perr("You cannot escape the EOL character.");
+      break;
+    case -8:
+      perr("You are trying to use the temporary selection variable but it has not been set yet.");
+      break;
+    case -9:
+      perr("Sorry, you cannot delete the whole table. You might as well type \"rm\", you know.");
+      break;
   }
   perr(" The program will now exit.\n");
   return -errCode;
@@ -502,6 +524,7 @@ bool addCols(tab_t *tab){
   for(int i = 1; i < tab->len; i++)
     if(SROW(i - 1).len != maxCols)
       if(!editTableCols(tab, i, SROW(i - 1).len + 1, maxCols - SROW(i - 1).len))
+        //TODO
         return false;
   return true;
 }
@@ -612,8 +635,8 @@ void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2){
 //Reads commands and executes them
 int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
   char *cmd;
-  int cmdLen;
-  int cmdNum = 0;
+  int cmdLen, cmdNum = 0;
+  int errCode;
   cellSel_t sel = {1, 1, -1, -1};
   cellSel_t tempSel = {-1, -1, -1, -1};
   while(1){
@@ -638,8 +661,12 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
       continue; //The command is a selection command
     //Exectution:
     tempVarFn(cmd, cmdLen, tempVar, sel, tab);
-    tabEdit(cmd, cmdLen, tab, sel);
-    contEdit(cmd, tab, &sel);
+    errCode = tabEdit(cmd, cmdLen, tab, sel);
+    if(errCode)
+      return errCode;
+    errCode = contEdit(cmd, tab, &sel);
+    if(errCode)
+      return errCode;
   }
   //freeTempVars(tempVar);
   return 0;
@@ -654,7 +681,7 @@ int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel){
     memcpy(tempSel, sel, sizeof(cellSel_t));
   }else if(cmd == strstr(cmd, "[_]")){
     if(tempSel->r1 < 1 || tempSel->c1 < 1)
-      return -4568;//TODO
+      return -8;
     memcpy(sel, tempSel, sizeof(cellSel_t));
   }else if(cmd == strstr(cmd, "[min]") || cmd == strstr(cmd, "[max]")){
     getMinOrMax(tab, sel, cmd == strstr(cmd, "[min]"));
@@ -725,27 +752,60 @@ bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *t
 
 //Executing the table editing commands - arow, irow, drow, icol, acol, dcol
 int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
-  if(sel.r2 != -1 || sel.c2 != -1)
-    return 0;
+  /*
+  int r2 = sel.r2, c2 = sel.c2;
+  if(sel.r2 == -1 || sel.c2 == -1){
+    r2 = sel.r1;
+    c2 = sel.c1;
+  }
+  if(sel.r1 == 0){
+    sel.r1 = 1;
+    r2 = tab->len - 1;
+  }
+  if(sel.c1 == 0){
+    sel.c1 = 1;
+    c2 = SROW(0).len;
+  }
+  */
+  int r1, c1, r2, c2;
+  parseSel(tab, &sel, &r1, &c1, &r2, &c2);
   if(cmdLen == 4 && (cmd[4] == '\0' || cmd[4] == ';')){
-    if(strstr(cmd, "irow") == cmd){
-      if(!editTableRows(tab, sel.r1 - 1, 1))
-        return -1;
-    }else if(strstr(cmd, "arow") == cmd){
-      if(!editTableRows(tab, sel.r1, 1))
-        return -1;
-    }else if(strstr(cmd, "drow") == cmd){
-      if(!editTableRows(tab, sel.r1, -1))
-        return -1;
-    }else if(strstr(cmd, "icol") == cmd){
-      if(!editTableCols(tab, 0, sel.c1, 1))
-        return -1;
-    }else if(strstr(cmd, "acol") == cmd){
-      if(!editTableCols(tab, 0, sel.c1 + 1, 1))
-        return -1;
-    }else if(strstr(cmd, "dcol") == cmd)
-      if(!editTableCols(tab, 0, sel.c1, -1))
-        return -1;
+    int j = 0;
+    for(int i = r1; i <= r2; i++){
+      if(strstr(cmd, "irow") == cmd){
+        if(!editTableRows(tab, i - 1 + j, 1))
+          return -4;
+        j++;
+      }else if(strstr(cmd, "arow") == cmd){
+        if(!editTableRows(tab, i + j, 1))
+          return -4;
+        j++;
+      }else if(strstr(cmd, "drow") == cmd){
+        if(tab->len == 2)
+          return -9;
+        if(!editTableRows(tab, i + j, -1))
+          return -4;
+        j--;
+      }
+    }
+    j = 0;
+    for(int i = c1; i <= c2; i++){
+      if(strstr(cmd, "icol") == cmd){
+        if(!editTableCols(tab, 0, i + j, 1))
+          return -4;
+        j++;
+      }else if(strstr(cmd, "acol") == cmd){
+        if(!editTableCols(tab, 0, i + 1 + j, 1))
+          return -4;
+        j++;
+      }else if(strstr(cmd, "dcol") == cmd){
+        if(SROW(0).len == 1)
+          return -9;
+        if(!editTableCols(tab, 0, i + j, -1))
+          return -4;
+        j--;
+      }
+    }
   }
   return 0;
 }
@@ -753,18 +813,19 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
 int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   if(cmd == strstr(cmd, "set ")){
     if(!setStr(cmd, tab, *sel))
-      return false;
+      return -4;
   }else if(cmd == strstr(cmd, "clear") && (cmd[5] == '\0' || cmd[5] == ';')){
-    if(!clearFn(tab, *sel))
-      return false;
+    int errCode = clearFn(tab, *sel);
+    if(errCode)
+      return errCode;
   }else if(cmd == strstr(cmd, "swap [")){
     swapFn(cmd, tab, *sel);
   }else if(cmd == strstr(cmd, "len ")){
     if(!lenFn(cmd, tab, *sel))
-      return false;
+      return -4;
   }else{
     if(!sumAvgCt(cmd, tab, sel))
-      return false;
+      return -4;
   }
   return 0;
 }
@@ -913,13 +974,21 @@ bool setStr(char *cmd, tab_t *tab, cellSel_t sel){
 }
 
 //Removes the content of a selected cell
-bool clearFn(tab_t *tab, cellSel_t sel){ 
-  int prevLen = SCELL(sel.r1 - 1, sel.c1 - 1).len;
-  if(prevLen != 1)
-    if(!reallocCont(tab, sel.r1, sel.c1, -(prevLen - 1)))
-      return false;
-  SCONT(sel.r1 - 1, sel.c1 - 1, 0) = '\0';
-  return true;
+int clearFn(tab_t *tab, cellSel_t sel){ 
+  int r1, c1, r2, c2;
+  parseSel(tab, &sel, &r1, &c1, &r2, &c2);
+  if(r1 == 1 && c1 == 1 && r2 >= tab->len - 1 && c2 >= SROW(0).len)
+    return -9;
+  for(int i = r1; i <= r2; i++){
+    for(int j = c1; j <= c2; j++){
+      int prevLen = SCELL(i - 1, j - 1).len;
+      if(prevLen != 1)
+        if(!reallocCont(tab, i, j, -(prevLen) + 1))
+          return -4;
+      SCONT(i - 1, j - 1, 0) = '\0';
+    }
+  }
+  return 0;
 }
 
 //Swaps two cells
@@ -949,7 +1018,7 @@ bool lenFn(char *cmd, tab_t *tab, cellSel_t sel){
 
 //Function for getting sum of, average of or count of all the selected cells,
 //which only contain numbers
-int sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel){
+bool sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel){
   int cmdParsed = 0;
   if(cmd == strstr(cmd, "sum ["))
     cmdParsed = 1;
@@ -958,7 +1027,7 @@ int sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel){
   else if(cmd == strstr(cmd, "count ["))
     cmdParsed = 3;
   else
-    return 0;
+    return true;
   int r1, c1, r2, c2;
   parseSel(tab, sel, &r1, &c1, &r2, &c2);
   double val = 0;
@@ -979,16 +1048,16 @@ int sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel){
   if(cmdParsed == 2){
     val /= count;
     if(!isCellSel(cmd + strlen("avg "), tab, &cmdSel, NULL))
-      return 0;
+      return false;
   }else if(cmdParsed == 3){
     val = count;
     if(!isCellSel(cmd + strlen("count "), tab, &cmdSel, NULL))
-      return 0;
+      return false;
   }else if(cmdParsed == 1)
     if(!isCellSel(cmd + strlen("sum "), tab, &cmdSel, NULL))
-      return 0;
+      return false;
   sprintf(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1), "%g", val);
   SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = 
     strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
-  return 1;
+  return true;
 }
