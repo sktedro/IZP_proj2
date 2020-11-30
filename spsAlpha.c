@@ -42,7 +42,7 @@ typedef struct{
   int len;
 } tempSel_t;
 
-void printTab(tab_t *tab, char *del);
+void printTab(tab_t *tab, char *del, char *fileName);
 int errFn(int errCode);
 bool mallocCont(tab_t *tab, int rowN, int cellN, int cellcN);
 bool mallocCell(tab_t *tab, int rowN, int cellN);
@@ -199,7 +199,7 @@ int main(int argc, char *argv[]){
   printf("Prep tab for print\n");
   checkTheTab(&tab);
 
-  printTab(&tab, del);
+  printTab(&tab, del, argv[cmdPlc + 1]);
   freeTab(&tab, tempVar);
   return 0;
 }
@@ -325,18 +325,6 @@ bool reallocRows(tab_t *tab, int newSize){
 
 //Reallocate space for columns in a row
 bool reallocCells(tab_t *tab, int rowN, int newSize){
-  /*
-  if(newSize == 1){
-    freeTab(tab, NULL);
-    ROW = malloc(sizeof(row_t));
-    if(!ROW) 
-      return false;
-    tab->len = 1;
-    if(!mallocCell(tab, 1, 1))
-      return false;
-    return true;
-  }
-  */
   cell_t *p = realloc(CELL(rowN - 1), newSize*sizeof(cell_t));
   if(!p) 
     return false;
@@ -505,17 +493,24 @@ bool removeEmptyCols(tab_t *tab){
 }
 
 //Prints the characters of the table one by one
-void printTab(tab_t *tab, char *del){
+void printTab(tab_t *tab, char *del, char *fileName){
+  FILE *f = fopen(fileName, "w");
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
-      for(int k = 0; k < SCELL(i, j).len; k++)
+      for(int k = 0; k < SCELL(i, j).len; k++){
+        fputc(SCONT(i, j, k), f);
         printf("%c", SCONT(i, j, k));
-      if(j+1 != SROW(i).len)
+      }
+      if(j+1 != SROW(i).len){
         //printf("\t%c\t", del[0]);
         printf("%c", del[0]);
+        fputc(del[0], f);
+      }
     }
     printf("\n");
+    fputc('\n', f);
   }
+  fclose(f);
 }
 
 //After running this function, all rows will have the same amounts of columns
@@ -752,21 +747,6 @@ bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *t
 
 //Executing the table editing commands - arow, irow, drow, icol, acol, dcol
 int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
-  /*
-  int r2 = sel.r2, c2 = sel.c2;
-  if(sel.r2 == -1 || sel.c2 == -1){
-    r2 = sel.r1;
-    c2 = sel.c1;
-  }
-  if(sel.r1 == 0){
-    sel.r1 = 1;
-    r2 = tab->len - 1;
-  }
-  if(sel.c1 == 0){
-    sel.c1 = 1;
-    c2 = SROW(0).len;
-  }
-  */
   int r1, c1, r2, c2;
   parseSel(tab, &sel, &r1, &c1, &r2, &c2);
   if(cmdLen == 4 && (cmd[4] == '\0' || cmd[4] == ';')){
@@ -809,6 +789,7 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
   }
   return 0;
 }
+
 //Executing the content editing commands
 int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   if(cmd == strstr(cmd, "set ")){
@@ -829,7 +810,6 @@ int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   }
   return 0;
 }
-
 
 /*
 ** Additional functions for executing entered commands
