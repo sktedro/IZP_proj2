@@ -188,9 +188,10 @@ int main(int argc, char *argv[]){
     return freeAndErr(&tab, -4, tempVar);
   printf("Add columns\n");
   checkTheTab(&tab);
-
+/*
   if(!removeEmptyCols(&tab))
     return freeAndErr(&tab, -4, tempVar);
+    */
   printf("Remove empty columns\n");
   checkTheTab(&tab);
 
@@ -213,7 +214,7 @@ void freeTab(tab_t *tab, char *tempVar[10]){
   for(int i = tab->len - 1; i >= 0; i--)
     freeRow(tab, i);
   free(ROW);
-  if(tempVar)
+  if(tempVar != NULL)
     for(int i = 0; i < 10; i++)
       free(tempVar[i]);
 }
@@ -230,10 +231,10 @@ void freeCell(tab_t *tab, int rowN, int cellN){
 
 //Deleting or adding rows
 bool editTableRows(tab_t *tab, int from, int by){
-  printf("%d -> ", from);
+  //printf("%d -> ", from);
   if(from < 0)
     from = tab->len;
-  printf("%d\n", from);
+  //printf("%d\n", from);
   if(by > 0){ //Inserting or adding rows
     if(!reallocRows(tab, (tab->len + by)))
       return false;
@@ -243,6 +244,15 @@ bool editTableRows(tab_t *tab, int from, int by){
       if(!mallocCell(tab, from + i + 1, 1))
         return false;
   }else if(by < 0){ //Deleting rows
+    if(tab->len - (-by) + 1 < 1){
+      //freeRow(tab, 1);
+      freeTab(tab, NULL);
+      ROW = malloc(sizeof(row_t));
+      tab->len = 1;
+      if(!mallocCell(tab, 1, 1))
+        return -4;
+      return true;
+    }
     for(int i = 0; i < (-by); i++)
       freeRow(tab, from + i - 1);
     for(int i = from - 1; i < tab->len + by + 1; i++)
@@ -263,9 +273,12 @@ bool editTableCols(tab_t *tab, int rowN, int from, int by){
   if(from == 0)
     from = SROW(0).len;
   for(int i = rowN; i < rowN + howManyRows; i++){
+    //printf("newCellN = %d + %d, because rowN = %d and i = %d\n", SROW(i - 1).len, by, rowN, i);
+    if(SCONT(i - 1, 0, 0) == EOF)
+      break;
     int newCellN = SROW(i - 1).len + by;
     if(newCellN < 1){
-      if(!editTableRows(tab, i, -1))
+      if(!editTableRows(tab, i--, -1))
         return false;
     }else if(by > 0){
       if(!reallocCells(tab, i, newCellN))
@@ -478,7 +491,7 @@ int getTab(char *argv[], tab_t *tab, char *del){
 bool removeEmptyCols(tab_t *tab){
   bool done = false;
   bool isEmpty = true;
-  for(int i = SROW(0).len; !done; i--){
+  for(int i = SROW(0).len; !done && SROW(0).len > 1; i--){
     for(int j = 1; j < tab->len; j++){
       if(SCELL(j - 1, i - 1).len != 1){
         isEmpty = false;
@@ -494,23 +507,23 @@ bool removeEmptyCols(tab_t *tab){
 
 //Prints the characters of the table one by one
 void printTab(tab_t *tab, char *del, char *fileName){
-  FILE *f = fopen(fileName, "w");
+  //FILE *f = fopen(fileName, "w");
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
       for(int k = 0; k < SCELL(i, j).len; k++){
-        fputc(SCONT(i, j, k), f);
+        //fputc(SCONT(i, j, k), f);
         printf("%c", SCONT(i, j, k));
       }
       if(j+1 != SROW(i).len){
-        //printf("\t%c\t", del[0]);
-        printf("%c", del[0]);
-        fputc(del[0], f);
+        printf("\t%c\t", del[0]);
+        //printf("%c", del[0]);
+        //fputc(del[0], f);
       }
     }
     printf("\n");
-    fputc('\n', f);
+    //fputc('\n', f);
   }
-  fclose(f);
+  //fclose(f);
 }
 
 //After running this function, all rows will have the same amounts of columns
@@ -612,16 +625,15 @@ void parseSel(tab_t *tab, cellSel_t *sel, int *r1, int *c1, int *r2, int *c2){
   *c1 = sel->c1;
   *r2 = (sel->r2 == -1) ? *r1 : sel->r2;
   *c2 = (sel->c2 == -1) ? *c1 : sel->c2;
-  if(*r1 == 0){
+  if(*r1 == 0)
     *r1 = 1;
-    *r2 = tab->len - 1;
-  }
-  if(*c1 == 0){
+  if(*c1 == 0)
     *c1 = 1;
-    *c2 = SROW(0).len;
-  }
+  if(*r1 == 0 || sel->r2 == -2)
+    *r2 = tab->len - 1;
+  if(*c1 == 0 || sel->c2 == -2)
+    *c2 = SROW(*r1).len;
 }
-
 
 /*
 ** Executing the entered commands
@@ -750,40 +762,29 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
   int r1, c1, r2, c2;
   parseSel(tab, &sel, &r1, &c1, &r2, &c2);
   if(cmdLen == 4 && (cmd[4] == '\0' || cmd[4] == ';')){
-    int j = 0;
-    for(int i = r1; i <= r2; i++){
+    for(int j = 0, i = r1; i <= r2; i++){
       if(strstr(cmd, "irow") == cmd){
-        if(!editTableRows(tab, i - 1 + j, 1))
+        if(!editTableRows(tab, i - 1 + j++, 1))
           return -4;
-        j++;
       }else if(strstr(cmd, "arow") == cmd){
-        if(!editTableRows(tab, i + j, 1))
+        if(!editTableRows(tab, i + j++, 1))
           return -4;
-        j++;
-      }else if(strstr(cmd, "drow") == cmd){
-        if(tab->len == 2)
-          return -9;
-        if(!editTableRows(tab, i + j, -1))
+      }else if(strstr(cmd, "drow") == cmd)
+        if(!editTableRows(tab, i + j--, -1))
           return -4;
-        j--;
-      }
     }
-    j = 0;
-    for(int i = c1; i <= c2; i++){
+    for(int j = 0, i = c1; i <= c2; i++){
       if(strstr(cmd, "icol") == cmd){
-        if(!editTableCols(tab, 0, i + j, 1))
+        if(!editTableCols(tab, 0, i + j++, 1))
           return -4;
-        j++;
       }else if(strstr(cmd, "acol") == cmd){
-        if(!editTableCols(tab, 0, i + 1 + j, 1))
+        if(!editTableCols(tab, 0, i + 1 + j++, 1))
           return -4;
-        j++;
       }else if(strstr(cmd, "dcol") == cmd){
-        if(SROW(0).len == 1)
-          return -9;
-        if(!editTableCols(tab, 0, i + j, -1))
+        if(SROW(0).len == 0)
+          return 0;
+        if(!editTableCols(tab, 0, i + j--, -1))
           return -4;
-        j--;
       }
     }
   }
@@ -843,6 +844,9 @@ int getCellSelArg(char *cmd, int argNum){
   if(!strcmp(selArg, "_")){
     free(selArg);
     return 0; //Whole row/column was selected
+  }else if(!strcmp(selArg, "-")){
+    free(selArg);
+    return -2;
   }
   char *tolptr = NULL;
   int arg = strtol(selArg, &tolptr, 10);
@@ -957,8 +961,6 @@ bool setStr(char *cmd, tab_t *tab, cellSel_t sel){
 int clearFn(tab_t *tab, cellSel_t sel){ 
   int r1, c1, r2, c2;
   parseSel(tab, &sel, &r1, &c1, &r2, &c2);
-  if(r1 == 1 && c1 == 1 && r2 >= tab->len - 1 && c2 >= SROW(0).len)
-    return -9;
   for(int i = r1; i <= r2; i++){
     for(int j = c1; j <= c2; j++){
       int prevLen = SCELL(i - 1, j - 1).len;
