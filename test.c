@@ -20,6 +20,11 @@ typedef struct{
 } cell_t;
 
 int main(int argc, char *argv[]){
+  char *p = malloc(10);
+  for(int i = 0; i < 20; i++)
+    p = realloc(p, 10);
+  free(p);
+  /*
   tab_t tab;
   FILE *tabFile;
   tabFile = fopen(argv[1], "r");
@@ -39,5 +44,6 @@ int main(int argc, char *argv[]){
   free(tab.cont);
  
   fclose(tabFile);
+  */
   return 0;
 }
