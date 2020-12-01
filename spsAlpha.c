@@ -570,7 +570,6 @@ bool prepTabForPrint(tab_t *tab, char *del){
 
 //Prints the characters of the table one by one
 void printTab(tab_t *tab, char *del, char *fileName){
-  /*
   (void) fileName;
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
@@ -584,7 +583,7 @@ void printTab(tab_t *tab, char *del, char *fileName){
     }
     printf("\n");
   }
-  */
+  /*
   FILE *f = fopen(fileName, "w");
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
@@ -598,6 +597,7 @@ void printTab(tab_t *tab, char *del, char *fileName){
     fputc('\n', f);
   }
   fclose(f);
+  */
 }
 
 /*
@@ -731,9 +731,12 @@ bool clearFn(tab_t *tab, cellSel_t sel){
 }
 
 //Swaps two cells
-void swapFn(char *cmd, tab_t *tab, cellSel_t sel){
+int swapFn(char *cmd, tab_t *tab, cellSel_t sel){
   cellSel_t actSel, swapSel;
-  if(isCellSel(cmd + strlen("swap "), tab, &swapSel, NULL)){
+  int isCellSelRet = isCellSel(cmd + strlen("swap "), tab, &swapSel, NULL);
+  if(isCellSelRet < 0)
+    return isCellSelRet;
+  if(isCellSelRet != 0){
     parseSel(tab, &sel, &actSel);
     for(int i = actSel.r1; i <= actSel.r2; i++){
       for(int j = actSel.c1; j <= actSel.c2; j++){
@@ -743,11 +746,12 @@ void swapFn(char *cmd, tab_t *tab, cellSel_t sel){
       }
     }
   }
+  return 0;
 }
 
 //Function for getting sum of, average of or count of all the selected cells,
 //which only contain numbers
-bool sumAvgCtFn(char *cmd, tab_t *tab, cellSel_t *sel){
+int sumAvgCtFn(char *cmd, tab_t *tab, cellSel_t *sel){
   int cmdParsed = 0;
   if(cmd == strstr(cmd, "sum ["))
     cmdParsed = 1;
@@ -756,7 +760,7 @@ bool sumAvgCtFn(char *cmd, tab_t *tab, cellSel_t *sel){
   else if(cmd == strstr(cmd, "count ["))
     cmdParsed = 3;
   else
-    return true;
+    return 0;
   cellSel_t actSel;
   parseSel(tab, sel, &actSel);
   double val = 0;
@@ -774,36 +778,45 @@ bool sumAvgCtFn(char *cmd, tab_t *tab, cellSel_t *sel){
     }
   }
   cellSel_t cmdSel;
+  int isCellSelRet = 0;
   if(cmdParsed == 2){
     val /= count;
-    if(!isCellSel(cmd + strlen("avg "), tab, &cmdSel, NULL))
-      return false;
+    isCellSelRet = isCellSel(cmd + strlen("avg "), tab, &cmdSel, NULL);
   }else if(cmdParsed == 3){
     val = count;
-    if(!isCellSel(cmd + strlen("count "), tab, &cmdSel, NULL))
-      return false;
+    isCellSelRet = isCellSel(cmd + strlen("count "), tab, &cmdSel, NULL);
   }else if(cmdParsed == 1)
-    if(!isCellSel(cmd + strlen("sum "), tab, &cmdSel, NULL))
-      return false;
-  sprintf(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1), "%g", val);
-  SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = 
-    strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
-  return true;
+    isCellSelRet = isCellSel(cmd + strlen("sum "), tab, &cmdSel, NULL);
+  if(isCellSelRet < 0)
+    return isCellSelRet;
+  if(isCellSelRet != 0){
+    sprintf(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1), "%g", val);
+    SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = 
+      strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
+  }
+  return 0;
 }
 
 //Gets the length of a string in a cell
-bool lenFn(char *cmd, tab_t *tab, cellSel_t sel){
-  cellSel_t lenSel;
-  if(isCellSel(cmd + strlen("len "), tab, &lenSel, NULL)){
-    int len = strlen(CONT(sel.r1 - 1, sel.c1 - 1));
+int lenFn(char *cmd, tab_t *tab, cellSel_t sel){
+  cellSel_t lenSel, actSel;
+  int isCellSelRet = isCellSel(cmd + strlen("len "), tab, &lenSel, NULL);
+  if(isCellSelRet < 0)
+    return isCellSelRet;
+  if(isCellSelRet != 0){
+    parseSel(tab, &sel, &actSel);
+    int len = 0;
+    for(int i = actSel.r1; i <= actSel.r2; i++)
+      for(int j = actSel.c1; j <= actSel.c2; j++)
+        len = len + SCELL(i - 1, j - 1).len - 1;
     int digits = digitsCt(len);
     if(len != digits + 1)
       if(!reallocCont(tab, lenSel.r1, lenSel.c1, -(len + digits + 1)))
-        return false;
+        return -4;
     sprintf(CONT(lenSel.r1 - 1, lenSel.c1 - 1), "%d", len);
-    SCELL(lenSel.r1 - 1, lenSel.c1 - 1).len = digitsCt(digits) + 1;
+    SCELL(lenSel.r1 - 1, lenSel.c1 - 1).len = digits + 1;
   }
-  return true;
+  return 0;
 }
 
 /*
@@ -884,6 +897,7 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel){
 int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   cellSel_t actSel;
   parseSel(tab, sel, &actSel);
+  int errCode = 0;
   if(cmd == strstr(cmd, "set ")){
     if(!setFn(cmd, tab, actSel))
       return -4;
@@ -891,13 +905,14 @@ int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
     if(!clearFn(tab, actSel))
       return -4;
   }else if(cmd == strstr(cmd, "swap [")){
-    swapFn(cmd, tab, *sel);
+    errCode = swapFn(cmd, tab, *sel);
   }else if(cmd == strstr(cmd, "len ")){
-    if(!lenFn(cmd, tab, *sel))
-      return -4;
-  }else
-    if(!sumAvgCtFn(cmd, tab, sel))
-      return -4;
+    errCode = lenFn(cmd, tab, *sel);
+  }else{
+    errCode = sumAvgCtFn(cmd, tab, sel);
+  }
+  if(errCode)
+    return errCode;
   return 0;
 }
 
@@ -969,7 +984,7 @@ int main(int argc, char *argv[]){
     return errFn(-4);
   tab_t tab;
   /*
-  errCode = getTab(argv, &tab, del, cmdPlc);
+  errCode = getTab(argv, &tab, del, filePlc);
   if(errCode) 
     return freeAndErr(&tab, errCode, tempVar);
   printf("Get the tab\n");
@@ -1009,6 +1024,7 @@ int main(int argc, char *argv[]){
   printTab(&tab, del, argv[cmdPlc + 1]);
   freeTab(&tab, tempVar);
   */
+
   errCode = getTab(argv, &tab, del, filePlc);
   if(errCode) 
     return freeAndErr(&tab, errCode, tempVar);
