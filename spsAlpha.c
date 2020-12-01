@@ -39,89 +39,8 @@ typedef struct{
   cellSel_t tempSel[10];
   int len;
 } tempSel_t;
-/*
-void printTab();
-int errFn();
-bool mallocCont();
-bool mallocCell();
-void freeCell();
-void freeRow();
-void freeTab();
-bool reallocCont();
-bool reallocRows();
-bool editTableRows();
-bool reallocCells();
-bool editTableCols();
-bool isDel();
-int getTab();
-int getMaxCols();
-bool addCols();
-bool addSelectedCols();
-int getCellSelArg();
-int isCellSel();
-bool isEscaped();
-char *getCmd();
-bool tempVarFn();
-bool allocTempVars();
-int tabEdit();
-int contEdit();
-int execCmds();
-int freeAndErr();
-void parseSel();
-void getMinOrMax();
-bool findFn();
-int digitsCt();
-bool setFn();
-bool clearFn();
-void swapFn();
-bool lenFn();
-bool sumAvgCt();
 
-bool removeEmptyCols();
-bool parseTheTab();
-bool prepTabForPrint();
-*/
-void printTab(tab_t *tab, char *del, char *fileName);
-int errFn(int errCode);
-bool mallocCont(tab_t *tab, int rowN, int cellN, int cellcN);
-bool mallocCell(tab_t *tab, int rowN, int cellN);
-void freeCell(tab_t *tab, int rowN, int cellN);
-void freeRow(tab_t *tab, int rowN);
-void freeTab(tab_t *tab, char *tempVar[10]);
-bool reallocCont(tab_t *tab, int rowN, int cellN, int by);
-bool reallocRows(tab_t *tab, int nextSize);
-bool editTableRows(tab_t *tab, int from, int by);
-bool reallocCells(tab_t *tab, int rowN, int newSize);
-bool editTableCols(tab_t *tab, int rowN, int from, int by);
-bool isDel(char *c, char *del);
-int getTab(char *argv[], tab_t *tab, char *del, int cmdPlc);
-int getMaxCols(tab_t *tab);
-bool addCols(tab_t *tab);
-bool addSelectedCols(tab_t *tab, cellSel_t *sel);
-int getCellSelArg(char *cmd, int argNum);
-int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel);
-bool isEscaped(char *str, int charPlc);
-char *getCmd(char *argv[], int cmdPlc, int cmdNum);
-bool tempVarFn(char *cmd, int cmdLen, char *tempVar[10], cellSel_t sel, tab_t *tab);
-bool allocTempVars(char *tempVar[10]);
-int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t sel);
-int contEdit(char *cmd, tab_t *tab, cellSel_t *sel);
-int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]);
-int freeAndErr(tab_t *tab, int errCode, char *tempVar[10]);
-void parseSel(tab_t *tab, cellSel_t *sel, cellSel_t *actSel);
-void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min);
-bool findFn(char *cmd, tab_t *tab, cellSel_t *sel);
-int digitsCt(int n);
-bool setFn(char *cmd, tab_t *tab, cellSel_t sel);
-bool clearFn(tab_t *tab, cellSel_t sel);
-void swapFn(char *cmd, tab_t *tab, cellSel_t sel);
-bool lenFn(char *cmd, tab_t *tab, cellSel_t sel);
-bool sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel);
-
-bool removeEmptyCols(tab_t *tab);
-bool parseTheTab(tab_t *tab);
-bool prepTabForPrint(tab_t *tab, char *del);
-
+//TODO remove this
 void checkTheTab(tab_t *tab){
   for(int i = 0; i < tab->len; i++){
     for(int j = 0; j < SROW(i).len; j++){
@@ -133,99 +52,21 @@ void checkTheTab(tab_t *tab){
   }
 }
 
-
-/*
-** "Main" function
-*/
-
-int main(int argc, char *argv[]){
-  int errCode = 0;
-  char *del = " ";
-  int cmdPlc = 1, filePlc = 2;
-  if(argc < 3){
-    return errFn(-1);
-  }else if(argc == 3 && !strcmp(argv[1], "-d")){
-    return errFn(-3);
-  }else if(argc == 4){
-    return errFn(-3);
-  }else if(argc > 5)
-    return errFn(-2);
-  if(!strcmp(argv[1], "-d")){
-    del = argv[2];
-    cmdPlc = 3;
-    filePlc = 4;
-  }
-  char *tempVar[10] = {0};
-  if(!allocTempVars(tempVar)) 
-    return errFn(-4);
-  tab_t tab;
-  /*
-  errCode = getTab(argv, &tab, del, cmdPlc);
-  if(errCode) 
-    return freeAndErr(&tab, errCode, tempVar);
-  printf("Get the tab\n");
-  checkTheTab(&tab);
-
-  if(!addCols(&tab)) 
-    return freeAndErr(&tab, -4, tempVar);
-  printf("Add cols\n");
-  checkTheTab(&tab);
-  
-  if(!parseTheTab(&tab))
-    return freeAndErr(&tab, -4, tempVar);
-  printf("Parse the tab\n");
-  checkTheTab(&tab);
-
-  errCode = execCmds(argv, cmdPlc, &tab, tempVar);
-  if(errCode) 
-    return freeAndErr(&tab, errCode, tempVar);
-  printf("Exec cmds\n");
-  checkTheTab(&tab);
-
-  if(!addCols(&tab)) 
-    return freeAndErr(&tab, -4, tempVar);
-  printf("Add columns\n");
-  checkTheTab(&tab);
-
-  if(!removeEmptyCols(&tab))
-    return freeAndErr(&tab, -4, tempVar);
-  printf("Remove empty columns\n");
-  checkTheTab(&tab);
-
-  if(!prepTabForPrint(&tab, del))
-    return freeAndErr(&tab, -4, tempVar);
-  printf("Prep tab for print\n");
-  checkTheTab(&tab);
-
-  printTab(&tab, del, argv[cmdPlc + 1]);
-  freeTab(&tab, tempVar);
-  */
-  errCode = getTab(argv, &tab, del, filePlc);
-  if(errCode) 
-    return freeAndErr(&tab, errCode, tempVar);
-  if(!addCols(&tab)) 
-    return freeAndErr(&tab, -4, tempVar);
-  if(!parseTheTab(&tab))
-    return freeAndErr(&tab, -4, tempVar);
-  errCode = execCmds(argv, cmdPlc, &tab, tempVar);
-  if(errCode) 
-    return freeAndErr(&tab, errCode, tempVar);
-  if(!addCols(&tab)) 
-    return freeAndErr(&tab, -4, tempVar);
-  if(!removeEmptyCols(&tab))
-    return freeAndErr(&tab, -4, tempVar);
-  if(!prepTabForPrint(&tab, del))
-    return freeAndErr(&tab, -4, tempVar);
-  printTab(&tab, del, argv[filePlc]);
-  freeTab(&tab, tempVar);
-  return 0;
-}
-
 /*
 ** Free and allocation functions
 */
 
 //Frees the memory allocated for the table and temporary variables
+void freeCell(tab_t *tab, int rowN, int cellN){
+  free(CONT(rowN, cellN));
+  SROW(rowN).len--;
+}
+void freeRow(tab_t *tab, int rowN){
+  for(int j = SROW(rowN).len - 1; j >= 0; j--)
+    freeCell(tab, rowN, j);
+  free(CELL(rowN));
+  tab->len--;
+}
 void freeTab(tab_t *tab, char *tempVar[10]){
   for(int i = tab->len - 1; i >= 0; i--)
     freeRow(tab, i);
@@ -234,15 +75,74 @@ void freeTab(tab_t *tab, char *tempVar[10]){
     for(int i = 0; i < 10; i++)
       free(tempVar[i]);
 }
-void freeRow(tab_t *tab, int rowN){
-  for(int j = SROW(rowN).len - 1; j >= 0; j--)
-    freeCell(tab, rowN, j);
-  free(CELL(rowN));
-  tab->len--;
+
+//Allocate space for contents of a new cell
+bool mallocCont(tab_t *tab, int rowN, int cellN, int cellcN){
+  CONT(rowN - 1, cellN - 1) = malloc(cellcN);
+  if(!CONT(rowN - 1, cellN - 1))
+    return false;
+  SCONT(rowN - 1, cellN - 1, cellcN - 1) = '\0';
+  SCELL(rowN - 1, cellN - 1).len = cellcN;
+  return true;
 }
-void freeCell(tab_t *tab, int rowN, int cellN){
-  free(CONT(rowN, cellN));
-  SROW(rowN).len--;
+
+//Allocate space for cells of a new row
+bool mallocCell(tab_t *tab, int rowN, int cellN){
+  CELL(rowN - 1) = malloc(cellN * sizeof(cell_t));
+  if(!CELL(rowN - 1))
+    return false;
+  SROW(rowN - 1).len = 1;
+  for(int i = 0; i < cellN; i++)
+    if(!mallocCont(tab, rowN, cellN, 1))
+      return false;
+  return true;
+}
+
+//Reallocate space for contents of a cell
+bool reallocCont(tab_t *tab, int rowN, int cellN, int by){
+  int newCellcN = SCELL(rowN - 1, cellN - 1).len + by;
+  if(newCellcN < 1)
+    newCellcN = 1;
+  char *p = realloc(CONT(rowN - 1, cellN - 1), newCellcN);
+  if(!p) 
+    return false;
+  CONT(rowN - 1, cellN - 1) = p;
+  SCELL(rowN - 1, cellN - 1).len = newCellcN;
+  SCONT(rowN - 1, cellN - 1, newCellcN - 1) = '\0';
+  return true;
+}
+
+//Reallocate space for columns in a row
+bool reallocCells(tab_t *tab, int rowN, int newSize){
+  cell_t *p = realloc(CELL(rowN - 1), newSize*sizeof(cell_t));
+  if(!p) 
+    return false;
+  CELL(rowN - 1) = p;
+  SROW(rowN - 1).len = newSize;
+  return true;
+}
+
+//Reallocate space for rows in the table
+bool reallocRows(tab_t *tab, int newSize){
+  row_t *p = realloc(ROW, newSize*sizeof(row_t));
+  if(!p) 
+    return false;
+  ROW = p;
+  tab->len = newSize; 
+  return true;
+}
+
+bool allocTempVars(char *tempVar[10]){
+  for(int i = 0; i < 10; i++){
+    tempVar[i] = malloc(1);
+    if(!tempVar[i]){
+      for(int j = i; j >= 0; j--)
+        free(tempVar[j]);
+      return false;
+    }
+    tempVar[i][0] = '\0';
+  }
+  return true;
 }
 
 //Deleting or adding rows
@@ -311,76 +211,6 @@ bool editTableCols(tab_t *tab, int rowN, int from, int by){
         return false;
 
     }
-  }
-  return true;
-}
-
-
-//Allocate space for cells of a new row
-bool mallocCell(tab_t *tab, int rowN, int cellN){
-  CELL(rowN - 1) = malloc(cellN * sizeof(cell_t));
-  if(!CELL(rowN - 1))
-    return false;
-  SROW(rowN - 1).len = 1;
-  for(int i = 0; i < cellN; i++)
-    if(!mallocCont(tab, rowN, cellN, 1))
-      return false;
-  return true;
-}
-
-//Allocate space for contents of a new cell
-bool mallocCont(tab_t *tab, int rowN, int cellN, int cellcN){
-  CONT(rowN - 1, cellN - 1) = malloc(cellcN);
-  if(!CONT(rowN - 1, cellN - 1))
-    return false;
-  SCONT(rowN - 1, cellN - 1, cellcN - 1) = '\0';
-  SCELL(rowN - 1, cellN - 1).len = cellcN;
-  return true;
-}
-
-//Reallocate space for rows in the table
-bool reallocRows(tab_t *tab, int newSize){
-  row_t *p = realloc(ROW, newSize*sizeof(row_t));
-  if(!p) 
-    return false;
-  ROW = p;
-  tab->len = newSize; 
-  return true;
-}
-
-//Reallocate space for columns in a row
-bool reallocCells(tab_t *tab, int rowN, int newSize){
-  cell_t *p = realloc(CELL(rowN - 1), newSize*sizeof(cell_t));
-  if(!p) 
-    return false;
-  CELL(rowN - 1) = p;
-  SROW(rowN - 1).len = newSize;
-  return true;
-}
-
-//Reallocate space for contents of a cell
-bool reallocCont(tab_t *tab, int rowN, int cellN, int by){
-  int newCellcN = SCELL(rowN - 1, cellN - 1).len + by;
-  if(newCellcN < 1)
-    newCellcN = 1;
-  char *p = realloc(CONT(rowN - 1, cellN - 1), newCellcN);
-  if(!p) 
-    return false;
-  CONT(rowN - 1, cellN - 1) = p;
-  SCELL(rowN - 1, cellN - 1).len = newCellcN;
-  SCONT(rowN - 1, cellN - 1, newCellcN - 1) = '\0';
-  return true;
-}
-
-bool allocTempVars(char *tempVar[10]){
-  for(int i = 0; i < 10; i++){
-    tempVar[i] = malloc(1);
-    if(!tempVar[i]){
-      for(int j = i; j >= 0; j--)
-        free(tempVar[j]);
-      return false;
-    }
-    tempVar[i][0] = '\0';
   }
   return true;
 }
@@ -455,6 +285,137 @@ int digitsCt(int n){
 }
 
 /*
+** Parsing the entered arguments
+*/
+
+//Returns a pointer to the 'cmdNum'-th command in argv
+char *getCmd(char *argv[], int cmdPlc, int cmdNum){
+  int actCmdNum = 1;
+  int i = 0;
+  while(argv[cmdPlc][i]){
+    bool quoted = false;
+    bool isProperDelim = false;
+    if(argv[cmdPlc][i] == '"')
+      quoted = !quoted;
+    else if(argv[cmdPlc][i] == ';' && !quoted && !isEscaped(argv[cmdPlc], i))
+      isProperDelim = true;
+    //TODO alebo to staci??
+    if(isProperDelim)
+      actCmdNum++;
+    if(cmdNum == 1)
+      return &argv[cmdPlc][0];
+    if(actCmdNum == cmdNum)
+      return &argv[cmdPlc][i];
+    i++;
+  }
+  if(cmdNum > actCmdNum + 1)
+    return NULL;
+  return &argv[cmdPlc][i]; 
+}
+
+//If there is a selection argument, this function parses it and returns it
+int getCellSelArg(char *cmd, int argNum){
+  char *selArg = malloc(sizeof(char));
+  if(!selArg) return -4;
+  int i = 1, j = 1, k = 1;
+  while(j != argNum){
+    //if(cmd[i] == ']')
+      //return -2;
+      //TODO osetrit, ci tam nie je malo argumentov v prikaze
+    if(cmd[i] == ',')
+      j++;
+    i++;
+  }
+  while(cmd[i] != ',' && cmd[i] != ']'){
+    char *p = realloc(selArg, (k + 1)*sizeof(char));
+    if(!p){ 
+      free(selArg);
+      return -4;
+    }
+    selArg = p;
+    selArg[k-1] = cmd[i];
+    selArg[k] = '\0';
+    i++;
+    k++;
+  }
+  if(!strcmp(selArg, "_")){
+    free(selArg);
+    return 0; //Whole row/column was selected
+  }else if(!strcmp(selArg, "-")){
+    free(selArg);
+    return -2;
+  }
+  char *tolptr = NULL;
+  int arg = strtol(selArg, &tolptr, 10);
+  if(*tolptr){
+    free(selArg);
+    return -1;
+  }
+  free(selArg);
+  if(arg < 1)
+    return -6;
+  return arg;
+}
+
+//When a string is entered (with "find" command or "set" command), it needs to
+//be parsed - same as the table. Backslashes escaping a character are removed
+//and quotes around the string as well.
+char *getCmdStr(char *cmd, int i){
+  bool isQuoted = false;
+  int j = 1;
+  char *str = malloc(1);
+  if(!str)
+    return false;
+  while(cmd[i]){
+    if(cmd[i] == '"' && !isEscaped(cmd, i + 1))
+      isQuoted = !isQuoted;
+    if((cmd[i] == ']' || cmd[i] == ';') && !isQuoted && !isEscaped(cmd, i + 1))
+      break;
+    else{
+      char *p = realloc(str, j + 1);
+      if(!p){
+        free(str);
+        return false;
+      }
+      str = p;
+      str[j - 1] = cmd[i];
+      str[j++] = '\0';
+    }
+    i++;
+  }
+  int len = strlen(str) + 1;
+  for(int k = 0; k < len; k++){
+    if(str[k] == '"'){
+      for(int l = k; l < len - 1; l++)
+        str[l] = str[l + 1];
+      k--;
+    }else if(str[k] == backslash)
+      for(int l = k; l < len - 1; l++)
+        str[l] = str[l + 1];
+    len = strlen(str) + 1;
+    str[len - 1] = '\0';
+  }
+  return str;
+}
+
+//Parses the selection arguments so they can be worked with (for example, if
+//"sel->r1" == 0, "r1" will be set to 1 and r2 will be set to number of rows
+void parseSel(tab_t *tab, cellSel_t *sel, cellSel_t *actSel){
+  actSel->r1 = sel->r1;
+  actSel->c1 = sel->c1;
+  actSel->r2 = (sel->r2 == -1) ? sel->r1 : sel->r2;
+  actSel->c2 = (sel->c2 == -1) ? sel->c1 : sel->c2;
+  if(actSel->r1 == 0 || sel->r2 == -2)
+    actSel->r2 = tab->len - 1;
+  if(actSel->r1 == 0)
+    actSel->r1 = 1;
+  if(actSel->c1 == 0 || sel->c2 == -2)
+    actSel->c2 = SROW(actSel->r1 - 1).len;
+  if(actSel->c1 == 0)
+    actSel->c1 = 1;
+}
+
+/*
 ** General working with the table
 */
 
@@ -499,6 +460,8 @@ int getTab(char *argv[], tab_t *tab, char *del, int filePlc){
   return 0;
 }
 
+//Converts the tab to pure text - gets rid of backslashes that "are escaping a
+//character" and quotes that are not escaped
 bool parseTheTab(tab_t *tab){
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
@@ -521,74 +484,12 @@ bool parseTheTab(tab_t *tab){
   return true;
 }
 
-bool prepTabForPrint(tab_t *tab, char *del){
-  for(int i = 0; i < tab->len - 1; i++){
-    for(int j = 0; j < SROW(i).len; j++){
-      bool makeQuoted = false;
-      for(int k = 0; k < SCELL(i, j).len; k++){
-        for(int l = 0; del[l]; l++)
-          if(SCONT(i, j, k) == del[l])
-            makeQuoted = true;
-        if(SCONT(i, j, k) == '"')
-          makeQuoted = true;
-        if(SCONT(i, j, k) == backslash || (SCONT(i, j, k) == '"' )){
-          if(!reallocCont(tab, i + 1, j + 1, 1))
-            return false;
-          for(int l = SCELL(i, j).len - 1; l > k; l--)
-            SCONT(i, j, l) = SCONT(i, j, l - 1);
-          SCONT(i, j, k) = backslash;
-          k++;
-        }
-      }
-      if(makeQuoted){
-        if(!reallocCont(tab, i + 1, j + 1, 2))
-          return false;
-        for(int l = SCELL(i, j).len - 1; l > 0; l--)
-          SCONT(i, j, l) = SCONT(i, j, l - 1);
-        SCONT(i, j, 0) = SCONT(i, j, SCELL(i, j).len - 2) = '"';
-        SCONT(i, j, SCELL(i, j).len - 1) = '\0';
-        makeQuoted = false;
-      }
-    }
-  }
-  return true;
-}
-
-//Prints the characters of the table one by one
-void printTab(tab_t *tab, char *del, char *fileName){
-  (void) fileName;
-  for(int i = 0; i < tab->len - 1; i++){
-    for(int j = 0; j < SROW(i).len; j++){
-      for(int k = 0; k < SCELL(i, j).len; k++){
-        printf("%c", SCONT(i, j, k));
-      }
-      if(j+1 != SROW(i).len){
-        printf("\t%c\t", del[0]);
-        //printf("%c", del[0]);
-      }
-    }
-    printf("\n");
-  }
-  /*
-  FILE *f = fopen(fileName, "w");
-  for(int i = 0; i < tab->len - 1; i++){
-    for(int j = 0; j < SROW(i).len; j++){
-      for(int k = 0; k < SCELL(i, j).len; k++){
-        fputc(SCONT(i, j, k), f);
-      }
-      if(j+1 != SROW(i).len){
-        fputc(del[0], f);
-      }
-    }
-    fputc('\n', f);
-  }
-  fclose(f);
-  */
-}
-
 //After running this function, all rows will have the same amounts of columns
 bool addCols(tab_t *tab){
-  int maxCols = getMaxCols(tab);
+  int maxCols = 0;
+  for(int i = 1; i < tab->len - 1; i++)
+    if(SROW(i - 1).len > maxCols)
+      maxCols = SROW(i - 1).len;
   for(int i = 1; i < tab->len; i++)
     if(SROW(i - 1).len != maxCols)
       if(!editTableCols(tab, i, SROW(i - 1).len + 1, maxCols - SROW(i - 1).len))
@@ -631,101 +532,124 @@ bool removeEmptyCols(tab_t *tab){
   return true;
 }
 
-//Returns the biggest amount of columns in a row
-int getMaxCols(tab_t *tab){
-  int max = 0;
-  for(int i = 1; i < tab->len; i++)
-    if(SROW(i - 1).len > max)
-      max = SROW(i - 1).len;
-  return max;
+//All the backslashes "that were escaping a character" and quotes that were not
+//escaped, were deleted. This functions inserts a backslash before characters
+//that need to be escaped and puts quotes around a cell if it's necessary
+bool prepTabForPrint(tab_t *tab, char *del){
+  for(int i = 0; i < tab->len - 1; i++){
+    for(int j = 0; j < SROW(i).len; j++){
+      bool makeQuoted = false;
+      for(int k = 0; k < SCELL(i, j).len; k++){
+        for(int l = 0; del[l]; l++)
+          if(SCONT(i, j, k) == del[l])
+            makeQuoted = true;
+        if(SCONT(i, j, k) == '"')
+          makeQuoted = true;
+        if(SCONT(i, j, k) == backslash || (SCONT(i, j, k) == '"' )){
+          if(!reallocCont(tab, i + 1, j + 1, 1))
+            return false;
+          for(int l = SCELL(i, j).len - 1; l > k; l--)
+            SCONT(i, j, l) = SCONT(i, j, l - 1);
+          SCONT(i, j, k) = backslash;
+          k++;
+        }
+      }
+      if(makeQuoted){
+        if(!reallocCont(tab, i + 1, j + 1, 2))
+          return false;
+        for(int l = SCELL(i, j).len - 1; l > 0; l--)
+          SCONT(i, j, l) = SCONT(i, j, l - 1);
+        SCONT(i, j, 0) = SCONT(i, j, SCELL(i, j).len - 2) = '"';
+        SCONT(i, j, SCELL(i, j).len - 1) = '\0';
+        makeQuoted = false;
+      }
+    }
+  }
+  return true;
+}
+
+//Prints the characters of the table one by one
+void printTab(tab_t *tab, char *del, char *fileName){
+  /*
+  (void) fileName;
+  for(int i = 0; i < tab->len - 1; i++){
+    for(int j = 0; j < SROW(i).len; j++){
+      for(int k = 0; k < SCELL(i, j).len; k++){
+        printf("%c", SCONT(i, j, k));
+      }
+      if(j+1 != SROW(i).len){
+        printf("\t%c\t", del[0]);
+        //printf("%c", del[0]);
+      }
+    }
+    printf("\n");
+  }
+  */
+  FILE *f = fopen(fileName, "w");
+  for(int i = 0; i < tab->len - 1; i++){
+    for(int j = 0; j < SROW(i).len; j++){
+      for(int k = 0; k < SCELL(i, j).len; k++){
+        fputc(SCONT(i, j, k), f);
+      }
+      if(j+1 != SROW(i).len){
+        fputc(del[0], f);
+      }
+    }
+    fputc('\n', f);
+  }
+  fclose(f);
 }
 
 /*
-** Parsing the entered arguments
+** Additional functions for selecting cells
 */
 
-//Returns a pointer to the 'cmdNum'-th command in argv
-char *getCmd(char *argv[], int cmdPlc, int cmdNum){
-  int actCmdNum = 1;
-  int i = 0;
-  while(argv[cmdPlc][i]){
-    bool quoted = false;
-    bool isProperDelim = false;
-    if(argv[cmdPlc][i] == '"')
-      quoted = !quoted;
-    else if(argv[cmdPlc][i] == ';' && !quoted && !isEscaped(argv[cmdPlc], i))
-      isProperDelim = true;
-    //TODO alebo to staci??
-    if(isProperDelim)
-      actCmdNum++;
-    if(cmdNum == 1)
-      return &argv[cmdPlc][0];
-    if(actCmdNum == cmdNum)
-      return &argv[cmdPlc][i];
-    i++;
+//bool min is false for "max", true for "min"
+void getMinOrMaxFn(tab_t *tab, cellSel_t *sel, bool min){
+  cellSel_t actSel;
+  parseSel(tab, sel, &actSel);
+  int nextr1, nextc1;
+  double val;
+  bool init = false;
+  for(int i = actSel.r1; i <= actSel.r2; i++){
+    for(int j = actSel.c1; j <= actSel.c2; j++){
+      char *todptr = NULL;
+      double temp = strtod(CONT(i - 1, j - 1), &todptr);
+      if(!todptr[0] && (!init || (min && temp < val) || (!min && temp > val))){
+        init = true;
+        val = temp;
+        nextr1 = i;
+        nextc1 = j;
+      }
+    }
   }
-  if(cmdNum > actCmdNum + 1)
-    return NULL;
-  return &argv[cmdPlc][i]; 
+  if(init){
+    sel->r1 = nextr1;
+    sel->c1 = nextc1;
+    sel->r2 = sel->c2 = -1;
+  }
 }
 
-//Parses the selection arguments so they can be worked with (for example, if
-//"sel->r1" == 0, "r1" will be set to 1 and r2 will be set to number of rows
-void parseSel(tab_t *tab, cellSel_t *sel, cellSel_t *actSel){
-  actSel->r1 = sel->r1;
-  actSel->c1 = sel->c1;
-  actSel->r2 = (sel->r2 == -1) ? sel->r1 : sel->r2;
-  actSel->c2 = (sel->c2 == -1) ? sel->c1 : sel->c2;
-  if(actSel->r1 == 0 || sel->r2 == -2)
-    actSel->r2 = tab->len - 1;
-  if(actSel->r1 == 0)
-    actSel->r1 = 1;
-  if(actSel->c1 == 0 || sel->c2 == -2)
-    actSel->c2 = SROW(actSel->r1 - 1).len;
-  if(actSel->c1 == 0)
-    actSel->c1 = 1;
-}
-
-/*
-** Executing the entered commands
-*/
-
-//Reads commands and executes them
-int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
-  char *cmd;
-  int cmdLen, cmdNum = 0;
-  int errCode;
-  cellSel_t sel = {1, 1, -1, -1};
-  cellSel_t tempSel = {-1, -1, -1, -1};
-  while(1){
-    //Getting next command:
-    addCols(tab);
-    cmdNum++;
-    cmd = getCmd(argv, cmdPlc, cmdNum);
-    cmdLen = getCmd(argv, cmdPlc, cmdNum + 1) - cmd;
-    if(!cmd)
-      break;
-    if(cmd != argv[cmdPlc]){
-      cmd++; //If this is not the first cmd, skip the delim
-      cmdLen--; //And dont count the delim as part of the command
+//Searches for a string in selected cells
+bool findFn(char *cmd, tab_t *tab, cellSel_t *sel){
+  char *str = getCmdStr(cmd, strlen("[find "));
+  if(!str)
+    return false;
+  bool done = false;
+  cellSel_t actSel;
+  parseSel(tab, sel, &actSel);
+  for(int i = actSel.r1; i <= actSel.r2 && !done; i++){
+    for(int j = actSel.c1; j <= actSel.c2 && !done; j++){
+      if(strstr(CONT(i - 1, j - 1), str)){
+        sel->r1 = i;
+        sel->c1 = j;
+        sel->r2 = sel->c2 = -1;
+        done = true;
+      }
     }
-    //Selection:
-    int isCellSelRet = isCellSel(cmd, tab, &sel, &tempSel);
-    if(isCellSelRet < 0){
-      return isCellSelRet; //Err
-    }
-    else if(isCellSelRet > 0)
-      continue; //The command is a selection command
-    //Exectution:
-    tempVarFn(cmd, cmdLen, tempVar, sel, tab);
-    errCode = tabEdit(cmd, cmdLen, tab, sel);
-    if(errCode)
-      return errCode;
-    errCode = contEdit(cmd, tab, &sel);
-    if(errCode)
-      return errCode;
   }
-  return 0;
+  free(str);
+  return true;
 }
 
 //Checks, if the actual command is a selection command. If so, it parses it and
@@ -740,7 +664,7 @@ int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel){
       return -8;
     memcpy(sel, tempSel, sizeof(cellSel_t));
   }else if(cmd == strstr(cmd, "[min]") || cmd == strstr(cmd, "[max]")){
-    getMinOrMax(tab, sel, cmd == strstr(cmd, "[min]"));
+    getMinOrMaxFn(tab, sel, cmd == strstr(cmd, "[min]"));
   }else if(cmd == strstr(cmd, "[find ")){
     if(!findFn(cmd, tab, sel))
       return -4;
@@ -770,6 +694,121 @@ int isCellSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tempSel){
   }
   return 1;
 }
+
+/*
+** Additional functions for executing entered commands
+*/
+
+//Writes string into a selected cell
+bool setFn(char *cmd, tab_t *tab, cellSel_t sel){
+  char *str = getCmdStr(cmd, strlen("set "));
+  if(!str)
+    return false;
+  for(int i = sel.r1; i <= sel.r2; i++){
+    for(int j = sel.c1; j <= sel.c2; j++){
+      if(!reallocCont(tab, i, j, (-SCELL(i - 1, j - 1).len + strlen(str) + 1)))
+        return false;
+      strcpy(CONT(i - 1, j - 1), str);
+      SCONT(i - 1, j - 1, strlen(str)) = '\0';
+    }
+  }
+  free(str);
+  return true;
+}
+
+//Removes the content of a selected cell
+bool clearFn(tab_t *tab, cellSel_t sel){ 
+  for(int i = sel.r1; i <= sel.r2; i++){
+    for(int j = sel.c1; j <= sel.c2; j++){
+      int prevLen = SCELL(i - 1, j - 1).len;
+      if(prevLen != 1)
+        if(!reallocCont(tab, i, j, -(prevLen) + 1))
+          return false;
+      SCONT(i - 1, j - 1, 0) = '\0';
+    }
+  }
+  return true;
+}
+
+//Swaps two cells
+void swapFn(char *cmd, tab_t *tab, cellSel_t sel){
+  cellSel_t actSel, swapSel;
+  if(isCellSel(cmd + strlen("swap "), tab, &swapSel, NULL)){
+    parseSel(tab, &sel, &actSel);
+    for(int i = actSel.r1; i <= actSel.r2; i++){
+      for(int j = actSel.c1; j <= actSel.c2; j++){
+        cell_t temp = SCELL(i - 1, j - 1);
+        SCELL(i - 1, j - 1) = SCELL(swapSel.r1 - 1, swapSel.c1 - 1);
+        SCELL(swapSel.r1 - 1, swapSel.c1 - 1) = temp;
+      }
+    }
+  }
+}
+
+//Function for getting sum of, average of or count of all the selected cells,
+//which only contain numbers
+bool sumAvgCtFn(char *cmd, tab_t *tab, cellSel_t *sel){
+  int cmdParsed = 0;
+  if(cmd == strstr(cmd, "sum ["))
+    cmdParsed = 1;
+  else if(cmd == strstr(cmd, "avg ["))
+    cmdParsed = 2;
+  else if(cmd == strstr(cmd, "count ["))
+    cmdParsed = 3;
+  else
+    return true;
+  cellSel_t actSel;
+  parseSel(tab, sel, &actSel);
+  double val = 0;
+  double count = 0;
+  for(int i = actSel.r1; i <= actSel.r2; i++){
+    for(int j = actSel.c1; j <= actSel.c2; j++){
+      char *todptr = NULL;
+      double temp = strtod(CONT(i - 1, j - 1), &todptr);
+      if(!todptr[0] && SCONT(i - 1, j - 1, 0)){
+        if(cmdParsed != 3)
+          val += temp;
+        if(cmdParsed != 1)
+          count++;
+      }
+    }
+  }
+  cellSel_t cmdSel;
+  if(cmdParsed == 2){
+    val /= count;
+    if(!isCellSel(cmd + strlen("avg "), tab, &cmdSel, NULL))
+      return false;
+  }else if(cmdParsed == 3){
+    val = count;
+    if(!isCellSel(cmd + strlen("count "), tab, &cmdSel, NULL))
+      return false;
+  }else if(cmdParsed == 1)
+    if(!isCellSel(cmd + strlen("sum "), tab, &cmdSel, NULL))
+      return false;
+  sprintf(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1), "%g", val);
+  SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = 
+    strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
+  return true;
+}
+
+//Gets the length of a string in a cell
+bool lenFn(char *cmd, tab_t *tab, cellSel_t sel){
+  cellSel_t lenSel;
+  if(isCellSel(cmd + strlen("len "), tab, &lenSel, NULL)){
+    int len = strlen(CONT(sel.r1 - 1, sel.c1 - 1));
+    int digits = digitsCt(len);
+    if(len != digits + 1)
+      if(!reallocCont(tab, lenSel.r1, lenSel.c1, -(len + digits + 1)))
+        return false;
+    sprintf(CONT(lenSel.r1 - 1, lenSel.c1 - 1), "%d", len);
+    SCELL(lenSel.r1 - 1, lenSel.c1 - 1).len = digitsCt(digits) + 1;
+  }
+  return true;
+}
+
+/*
+** Executing the entered commands
+*/
 
 //Function responsible for working with temporary variables that the user can
 //work with
@@ -857,248 +896,136 @@ int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
     if(!lenFn(cmd, tab, *sel))
       return -4;
   }else
-    if(!sumAvgCt(cmd, tab, sel))
+    if(!sumAvgCtFn(cmd, tab, sel))
       return -4;
   return 0;
 }
 
 /*
-** Additional functions for executing entered commands
+** Main "Executing the commands" function
 */
 
-//If there is a selection argument, this function parses it and returns it
-int getCellSelArg(char *cmd, int argNum){
-  char *selArg = malloc(sizeof(char));
-  if(!selArg) return -4;
-  int i = 1, j = 1, k = 1;
-  while(j != argNum){
-    //if(cmd[i] == ']')
-      //return -2;
-      //TODO osetrit, ci tam nie je malo argumentov v prikaze
-    if(cmd[i] == ',')
-      j++;
-    i++;
-  }
-  while(cmd[i] != ',' && cmd[i] != ']'){
-    char *p = realloc(selArg, (k + 1)*sizeof(char));
-    if(!p){ 
-      free(selArg);
-      return -4;
-    }
-    selArg = p;
-    selArg[k-1] = cmd[i];
-    selArg[k] = '\0';
-    i++;
-    k++;
-  }
-  if(!strcmp(selArg, "_")){
-    free(selArg);
-    return 0; //Whole row/column was selected
-  }else if(!strcmp(selArg, "-")){
-    free(selArg);
-    return -2;
-  }
-  char *tolptr = NULL;
-  int arg = strtol(selArg, &tolptr, 10);
-  if(*tolptr){
-    free(selArg);
-    return -1;
-  }
-  free(selArg);
-  if(arg < 1)
-    return -6;
-  return arg;
-}
-
-//bool min is false for "max", true for "min"
-void getMinOrMax(tab_t *tab, cellSel_t *sel, bool min){
-  cellSel_t actSel;
-  parseSel(tab, sel, &actSel);
-  int nextr1, nextc1;
-  double val;
-  bool init = false;
-  for(int i = actSel.r1; i <= actSel.r2; i++){
-    for(int j = actSel.c1; j <= actSel.c2; j++){
-      char *todptr = NULL;
-      double temp = strtod(CONT(i - 1, j - 1), &todptr);
-      if(!todptr[0] && (!init || (min && temp < val) || (!min && temp > val))){
-        init = true;
-        val = temp;
-        nextr1 = i;
-        nextc1 = j;
-      }
-    }
-  }
-  if(init){
-    sel->r1 = nextr1;
-    sel->c1 = nextc1;
-    sel->r2 = sel->c2 = -1;
-  }
-}
-
-char *getCmdStr(char *cmd, int i){
-  bool isQuoted = false;
-  int j = 1;
-  char *str = malloc(1);
-  if(!str)
-    return false;
-  while(cmd[i]){
-    if(cmd[i] == '"' && !isEscaped(cmd, i + 1))
-      isQuoted = !isQuoted;
-    if((cmd[i] == ']' || cmd[i] == ';') && !isQuoted && !isEscaped(cmd, i + 1))
+//Reads commands and executes them
+int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tempVar[10]){
+  char *cmd;
+  int cmdLen, cmdNum = 0;
+  int errCode;
+  cellSel_t sel = {1, 1, -1, -1};
+  cellSel_t tempSel = {-1, -1, -1, -1};
+  while(1){
+    //Getting next command:
+    addCols(tab);
+    cmdNum++;
+    cmd = getCmd(argv, cmdPlc, cmdNum);
+    cmdLen = getCmd(argv, cmdPlc, cmdNum + 1) - cmd;
+    if(!cmd)
       break;
-    else{
-      char *p = realloc(str, j + 1);
-      if(!p){
-        free(str);
-        return false;
-      }
-      str = p;
-      str[j - 1] = cmd[i];
-      str[j++] = '\0';
+    if(cmd != argv[cmdPlc]){
+      cmd++; //If this is not the first cmd, skip the delim
+      cmdLen--; //And dont count the delim as part of the command
     }
-    i++;
+    //Selection:
+    int isCellSelRet = isCellSel(cmd, tab, &sel, &tempSel);
+    if(isCellSelRet < 0){
+      return isCellSelRet; //Err
+    }
+    else if(isCellSelRet > 0)
+      continue; //The command is a selection command
+    //Exectution:
+    tempVarFn(cmd, cmdLen, tempVar, sel, tab);
+    errCode = tabEdit(cmd, cmdLen, tab, sel);
+    if(errCode)
+      return errCode;
+    errCode = contEdit(cmd, tab, &sel);
+    if(errCode)
+      return errCode;
   }
-  int len = strlen(str) + 1;
-  for(int k = 0; k < len; k++){
-    if(str[k] == '"'){
-      for(int l = k; l < len - 1; l++)
-        str[l] = str[l + 1];
-      k--;
-    }else if(str[k] == backslash)
-      for(int l = k; l < len - 1; l++)
-        str[l] = str[l + 1];
-    len = strlen(str) + 1;
-    str[len - 1] = '\0';
-  }
-  return str;
+  return 0;
 }
 
-//Searches for a string in selected cells
-bool findFn(char *cmd, tab_t *tab, cellSel_t *sel){
-  char *str = getCmdStr(cmd, strlen("[find "));
-  if(!str)
-    return false;
-  bool done = false;
-  cellSel_t actSel;
-  parseSel(tab, sel, &actSel);
-  for(int i = actSel.r1; i <= actSel.r2 && !done; i++){
-    for(int j = actSel.c1; j <= actSel.c2 && !done; j++){
-      if(strstr(CONT(i - 1, j - 1), str)){
-        sel->r1 = i;
-        sel->c1 = j;
-        sel->r2 = sel->c2 = -1;
-        done = true;
-      }
-    }
-  }
-  free(str);
-  return true;
-}
+/*
+** "Main" function
+*/
 
-//Writes string into a selected cell
-bool setFn(char *cmd, tab_t *tab, cellSel_t sel){
-  char *str = getCmdStr(cmd, strlen("set "));
-  if(!str)
-    return false;
-  for(int i = sel.r1; i <= sel.r2; i++){
-    for(int j = sel.c1; j <= sel.c2; j++){
-      if(!reallocCont(tab, i, j, (-SCELL(i - 1, j - 1).len + strlen(str) + 1)))
-        return false;
-      strcpy(CONT(i - 1, j - 1), str);
-      SCONT(i - 1, j - 1, strlen(str)) = '\0';
-    }
+int main(int argc, char *argv[]){
+  int errCode = 0;
+  char *del = " ";
+  int cmdPlc = 1, filePlc = 2;
+  if(argc < 3){
+    return errFn(-1);
+  }else if(argc == 3 && !strcmp(argv[1], "-d")){
+    return errFn(-3);
+  }else if(argc == 4){
+    return errFn(-3);
+  }else if(argc > 5)
+    return errFn(-2);
+  if(!strcmp(argv[1], "-d")){
+    del = argv[2];
+    cmdPlc = 3;
+    filePlc = 4;
   }
-  free(str);
-  return true;
-}
+  char *tempVar[10] = {0};
+  if(!allocTempVars(tempVar)) 
+    return errFn(-4);
+  tab_t tab;
+  /*
+  errCode = getTab(argv, &tab, del, cmdPlc);
+  if(errCode) 
+    return freeAndErr(&tab, errCode, tempVar);
+  printf("Get the tab\n");
+  checkTheTab(&tab);
 
-//Removes the content of a selected cell
-bool clearFn(tab_t *tab, cellSel_t sel){ 
-  for(int i = sel.r1; i <= sel.r2; i++){
-    for(int j = sel.c1; j <= sel.c2; j++){
-      int prevLen = SCELL(i - 1, j - 1).len;
-      if(prevLen != 1)
-        if(!reallocCont(tab, i, j, -(prevLen) + 1))
-          return false;
-      SCONT(i - 1, j - 1, 0) = '\0';
-    }
-  }
-  return true;
-}
+  if(!addCols(&tab)) 
+    return freeAndErr(&tab, -4, tempVar);
+  printf("Add cols\n");
+  checkTheTab(&tab);
+  
+  if(!parseTheTab(&tab))
+    return freeAndErr(&tab, -4, tempVar);
+  printf("Parse the tab\n");
+  checkTheTab(&tab);
 
-//Swaps two cells
-void swapFn(char *cmd, tab_t *tab, cellSel_t sel){
-  cellSel_t actSel, swapSel;
-  if(isCellSel(cmd + strlen("swap "), tab, &swapSel, NULL)){
-    parseSel(tab, &sel, &actSel);
-    for(int i = actSel.r1; i <= actSel.r2; i++){
-      for(int j = actSel.c1; j <= actSel.c2; j++){
-        cell_t temp = SCELL(i - 1, j - 1);
-        SCELL(i - 1, j - 1) = SCELL(swapSel.r1 - 1, swapSel.c1 - 1);
-        SCELL(swapSel.r1 - 1, swapSel.c1 - 1) = temp;
-      }
-    }
-  }
-}
+  errCode = execCmds(argv, cmdPlc, &tab, tempVar);
+  if(errCode) 
+    return freeAndErr(&tab, errCode, tempVar);
+  printf("Exec cmds\n");
+  checkTheTab(&tab);
 
-//Gets the length of a string in a cell
-bool lenFn(char *cmd, tab_t *tab, cellSel_t sel){
-  cellSel_t lenSel;
-  if(isCellSel(cmd + strlen("len "), tab, &lenSel, NULL)){
-    int len = strlen(CONT(sel.r1 - 1, sel.c1 - 1));
-    int digits = digitsCt(len);
-    if(len != digits + 1)
-      if(!reallocCont(tab, lenSel.r1, lenSel.c1, -(len + digits + 1)))
-        return false;
-    sprintf(CONT(lenSel.r1 - 1, lenSel.c1 - 1), "%d", len);
-    SCELL(lenSel.r1 - 1, lenSel.c1 - 1).len = digitsCt(digits) + 1;
-  }
-  return true;
-}
+  if(!addCols(&tab)) 
+    return freeAndErr(&tab, -4, tempVar);
+  printf("Add columns\n");
+  checkTheTab(&tab);
 
-//Function for getting sum of, average of or count of all the selected cells,
-//which only contain numbers
-bool sumAvgCt(char *cmd, tab_t *tab, cellSel_t *sel){
-  int cmdParsed = 0;
-  if(cmd == strstr(cmd, "sum ["))
-    cmdParsed = 1;
-  else if(cmd == strstr(cmd, "avg ["))
-    cmdParsed = 2;
-  else if(cmd == strstr(cmd, "count ["))
-    cmdParsed = 3;
-  else
-    return true;
-  cellSel_t actSel;
-  parseSel(tab, sel, &actSel);
-  double val = 0;
-  double count = 0;
-  for(int i = actSel.r1; i <= actSel.r2; i++){
-    for(int j = actSel.c1; j <= actSel.c2; j++){
-      char *todptr = NULL;
-      double temp = strtod(CONT(i - 1, j - 1), &todptr);
-      if(!todptr[0] && SCONT(i - 1, j - 1, 0)){
-        if(cmdParsed != 3)
-          val += temp;
-        if(cmdParsed != 1)
-          count++;
-      }
-    }
-  }
-  cellSel_t cmdSel;
-  if(cmdParsed == 2){
-    val /= count;
-    if(!isCellSel(cmd + strlen("avg "), tab, &cmdSel, NULL))
-      return false;
-  }else if(cmdParsed == 3){
-    val = count;
-    if(!isCellSel(cmd + strlen("count "), tab, &cmdSel, NULL))
-      return false;
-  }else if(cmdParsed == 1)
-    if(!isCellSel(cmd + strlen("sum "), tab, &cmdSel, NULL))
-      return false;
-  sprintf(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1), "%g", val);
-  SCELL(cmdSel.r1 - 1, cmdSel.c1 - 1).len = 
-    strlen(CONT(cmdSel.r1 - 1, cmdSel.c1 - 1)) + 1;
-  return true;
+  if(!removeEmptyCols(&tab))
+    return freeAndErr(&tab, -4, tempVar);
+  printf("Remove empty columns\n");
+  checkTheTab(&tab);
+
+  if(!prepTabForPrint(&tab, del))
+    return freeAndErr(&tab, -4, tempVar);
+  printf("Prep tab for print\n");
+  checkTheTab(&tab);
+
+  printTab(&tab, del, argv[cmdPlc + 1]);
+  freeTab(&tab, tempVar);
+  */
+  errCode = getTab(argv, &tab, del, filePlc);
+  if(errCode) 
+    return freeAndErr(&tab, errCode, tempVar);
+  if(!addCols(&tab)) 
+    return freeAndErr(&tab, -4, tempVar);
+  if(!parseTheTab(&tab))
+    return freeAndErr(&tab, -4, tempVar);
+  errCode = execCmds(argv, cmdPlc, &tab, tempVar);
+  if(errCode) 
+    return freeAndErr(&tab, errCode, tempVar);
+  if(!addCols(&tab)) 
+    return freeAndErr(&tab, -4, tempVar);
+  if(!removeEmptyCols(&tab))
+    return freeAndErr(&tab, -4, tempVar);
+  if(!prepTabForPrint(&tab, del))
+    return freeAndErr(&tab, -4, tempVar);
+  printTab(&tab, del, argv[filePlc]);
+  freeTab(&tab, tempVar);
+  return 0;
 }
