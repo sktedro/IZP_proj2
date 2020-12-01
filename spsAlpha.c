@@ -570,6 +570,7 @@ bool prepTabForPrint(tab_t *tab, char *del){
 
 //Prints the characters of the table one by one
 void printTab(tab_t *tab, char *del, char *fileName){
+  /*
   (void) fileName;
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
@@ -583,11 +584,11 @@ void printTab(tab_t *tab, char *del, char *fileName){
     }
     printf("\n");
   }
-  /*
+  */
   FILE *f = fopen(fileName, "w");
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
-      for(int k = 0; k < SCELL(i, j).len; k++){
+      for(int k = 0; k < SCELL(i, j).len - 1; k++){
         fputc(SCONT(i, j, k), f);
       }
       if(j+1 != SROW(i).len){
@@ -597,7 +598,6 @@ void printTab(tab_t *tab, char *del, char *fileName){
     fputc('\n', f);
   }
   fclose(f);
-  */
 }
 
 /*
@@ -805,10 +805,7 @@ int lenFn(char *cmd, tab_t *tab, cellSel_t sel){
     return isCellSelRet;
   if(isCellSelRet != 0){
     parseSel(tab, &sel, &actSel);
-    int len = 0;
-    for(int i = actSel.r1; i <= actSel.r2; i++)
-      for(int j = actSel.c1; j <= actSel.c2; j++)
-        len = len + SCELL(i - 1, j - 1).len - 1;
+    int len = SCELL(actSel.r2 - 1, actSel.c2 - 1).len - 1;
     int digits = digitsCt(len);
     if(len != digits + 1)
       if(!reallocCont(tab, lenSel.r1, lenSel.c1, -(len + digits + 1)))
@@ -900,17 +897,16 @@ int contEdit(char *cmd, tab_t *tab, cellSel_t *sel){
   int errCode = 0;
   if(cmd == strstr(cmd, "set ")){
     if(!setFn(cmd, tab, actSel))
-      return -4;
+      errCode = -4;
   }else if(cmd == strstr(cmd, "clear") && (cmd[5] == '\0' || cmd[5] == ';')){
     if(!clearFn(tab, actSel))
-      return -4;
+      errCode = -4;
   }else if(cmd == strstr(cmd, "swap [")){
     errCode = swapFn(cmd, tab, *sel);
   }else if(cmd == strstr(cmd, "len ")){
     errCode = lenFn(cmd, tab, *sel);
-  }else{
+  }else
     errCode = sumAvgCtFn(cmd, tab, sel);
-  }
   if(errCode)
     return errCode;
   return 0;
