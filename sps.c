@@ -3,16 +3,16 @@
 #include <stdbool.h>
 #include <string.h>
 
-//SROW, SCELL, SCONT is a specific row/cell/cont
-#define ROW               tab->row
-#define SROW(X)           tab->row[X]
-#define CELL(X)           tab->row[X].cell
-#define SCELL(X, Y)       tab->row[X].cell[Y]
-#define CONT(X, Y)        tab->row[X].cell[Y].cont
-#define SCONT(X, Y, Z)    tab->row[X].cell[Y].cont[Z]
+#define ROW               tab->row                    //Ptr to rows in the tab
+#define SROW(X)           tab->row[X]                 //SROW = specific row
+#define CELL(X)           tab->row[X].cell            //Ptr to cells in a row
+#define SCELL(X, Y)       tab->row[X].cell[Y]         //SCELL = specific cell
+#define CONT(X, Y)        tab->row[X].cell[Y].cont    //Content of a cell
+#define SCONT(X, Y, Z)    tab->row[X].cell[Y].cont[Z] //SCONT = specific cont
 #define err(X)            fprintf(stderr, X)
+#define maxIntDigits      11    //Int is 4 bytes - it can only have < 11 digits
 
-#define print 1
+#define print 0
 #define deb 1
 
 typedef struct{
@@ -79,12 +79,12 @@ void freeTab(tab_t *tab, char *tmpVar[10]){
 }
 
 //Allocate space for contents of a new cell
-bool mlcCont(tab_t *tab, int rowN, int cellN, int charN){
-  CONT(rowN - 1, cellN - 1) = malloc(charN);
+bool mlcCont(tab_t *tab, int rowN, int cellN){
+  CONT(rowN - 1, cellN - 1) = malloc(1);
   if(!CONT(rowN - 1, cellN - 1))
     return false;
-  SCELL(rowN - 1, cellN - 1).len = charN;
-  SCONT(rowN - 1, cellN - 1, charN - 1) = '\0';
+  SCELL(rowN - 1, cellN - 1).len = 1;
+  SCONT(rowN - 1, cellN - 1, 0) = '\0';
   return true;
 }
 
@@ -94,7 +94,7 @@ bool mlcCell(tab_t *tab, int rowN){
   if(!CELL(rowN - 1))
     return false;
   SROW(rowN - 1).len = 1;
-  if(!mlcCont(tab, rowN, 1, 1))
+  if(!mlcCont(tab, rowN, 1))
     return false;
   return true;
 }
@@ -208,7 +208,7 @@ bool editCols(tab_t *tab, int rowN, int from, int by){
         for(int j = (SROW(i - 1).len - 1); j + 1 > from; j--)
           SCELL(i - 1, j) = SCELL(i - 1, j - by);
       for(int j = from; j < from + by; j++)
-        if(!mlcCont(tab, i, j, 1))
+        if(!mlcCont(tab, i, j))
           return false;
     }
     else if(by < 0){
@@ -307,14 +307,10 @@ int getCellSelArg(char *cmd, int argNum){
   while(j != argNum)
     if(cmd[i++] == ',')
       j++;
-  char *selArg = malloc(1);
+  char *selArg = malloc(maxIntDigits + 1);
   if(!selArg) 
     return -4;
   while(cmd[i] != ',' && cmd[i] != ']'){
-    if(!rlcChar(&selArg, (k + 1))){
-      free(selArg);
-      return -4;
-    }
     selArg[k-1] = cmd[i];
     selArg[k] = '\0';
     i++;
@@ -442,12 +438,45 @@ int getTab(char *argv[], tab_t *tab, char *del, int filePlc){
   return 0;
 }
 
+bool iterThroughCells(tab_t *tab, int *i, int *j){
+  for(; *i < tab->len - 1; ){
+    for(; ++(*j) < SROW(*i).len; ){
+      return true;
+    }
+    //printf("\n");
+    *j = 0;
+    (*i)++;
+    return true;
+  }
+  return false;
+}
+
+bool iterThroughChars(tab_t *tab, int *i, int *j, int *k){
+  if(*i > tab->len - 2)
+    return false;
+  if(*j > SROW(*i).len - 2 && *k > SCELL(*i, *j).len - 2){
+    (*i)++;
+    *j = *k = 0;
+  }
+  else if(*k > SCELL(*i, *j).len - 2){
+    (*j)++;
+    *k = 0;
+  }
+  else
+    (*k)++;
+  return true;
+}
+
 //Converts the tab to pure text - gets rid of backslashes that "are escaping a
 //character" and quotes that are not escaped
 bool parseTheTab(tab_t *tab){
+  /*
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
-      for(int k = 0; k < SCELL(i, j).len; k++){
+      //for(int k = 0; k < SCELL(i, j).len; k++){
+    */
+  int i = 0, j = 0, k = -1;
+  while(iterThroughChars(tab, &i, &j, &k)){
         if(SCONT(i, j, k) == '\\'){
           for(int l = k; l < SCELL(i, j).len - 1; l++)
             SCONT(i, j, l) = SCONT(i, j, l + 1);
@@ -461,8 +490,10 @@ bool parseTheTab(tab_t *tab){
           k--;
         }
       }
+      /*
     }
   }
+*/
   return true;
 }
 
@@ -518,10 +549,14 @@ bool removeEmptyRows(tab_t *tab){
 //escaped, were deleted. This functions inserts a backslash before characters
 //that need to be escaped and puts quotes around a cell if it's necessary
 bool prepTabForPrint(tab_t *tab, char *del){
-  for(int i = 0; i < tab->len - 1; i++){
+  /*for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
       bool makeQuoted = false;
       for(int k = 0; k < SCELL(i, j).len; k++){
+      */
+  bool makeQuoted = false;
+  int i = 0, j = 0, k = -1;
+  while(iterThroughChars(tab, &i, &j, &k)){
         for(int l = 0; del[l] && !makeQuoted; l++)
           if(SCONT(i, j, k) == del[l] || SCONT(i, j, k) == '"')
             makeQuoted = true;
@@ -534,7 +569,8 @@ bool prepTabForPrint(tab_t *tab, char *del){
           k++;
         }
       }
-      if(makeQuoted){
+      if(makeQuoted && k == SCELL(i, j).len - 1){
+        makeQuoted = false;
         if(!rlcCont(tab, i + 1, j + 1, 2))
           return false;
         for(int l = SCELL(i, j).len - 1; l > 0; l--)
@@ -542,8 +578,10 @@ bool prepTabForPrint(tab_t *tab, char *del){
         SCONT(i, j, 0) = SCONT(i, j, SCELL(i, j).len - 2) = '"';
         SCONT(i, j, SCELL(i, j).len - 1) = '\0';
       }
+      /*
     }
   }
+  */
   return true;
 }
 
@@ -552,6 +590,14 @@ void printTab(tab_t *tab, char *del, char *fileName){
   //TODO remove
   if(!print){
     (void) fileName;
+    int i = 0, j = 0, k = -1;
+    while(iterThroughChars(tab, &i, &j, &k)){
+      if(j == 0 && k == 0 && i != 0)
+        printf("\n");
+      if(k == 0 && j != 0)
+        printf("%c", del[0]);
+      printf("%c", SCONT(i, j, k));
+    /*
     for(int i = 0; i < tab->len - 1; i++){
       for(int j = 0; j < SROW(i).len; j++){
         for(int k = 0; k < SCELL(i, j).len; k++){
@@ -563,7 +609,9 @@ void printTab(tab_t *tab, char *del, char *fileName){
         }
       }
       printf("\n");
+    */
     }
+    printf("\n");
   }
   else{
   FILE *f = fopen(fileName, "w");
@@ -677,29 +725,29 @@ int isSel(char *cmd, tab_t *tab, cellSel_t *sel, cellSel_t *tmpSel){
 */
 
 //Writes string into a selected cell
-bool setFn(char *cmd, tab_t *tab, cellSel_t sel){
+int setFn(char *cmd, tab_t *tab, cellSel_t sel){
   char *str = getCmdStr(cmd, strlen("set "));
   if(!str)
-    return false;
+    return -4;
   for(int i = sel.r1; i <= sel.r2; i++){
     for(int j = sel.c1; j <= sel.c2; j++){
       if(!rlcCont(tab, i, j, (-SCELL(i - 1, j - 1).len + strlen(str) + 1)))
-        return false;
+        return -4;
       strcpy(CONT(i - 1, j - 1), str);
     }
   }
   free(str);
-  return true;
+  return 0;
 }
 
 //Removes the content of a selected cell
-bool clearFn(tab_t *tab, cellSel_t sel){ 
+int clearFn(tab_t *tab, cellSel_t sel){ 
   for(int i = sel.r1; i <= sel.r2; i++)
     for(int j = sel.c1; j <= sel.c2; j++)
       if(SCELL(i - 1, j - 1).len != 1)
         if(!rlcCont(tab, i, j, -(SCELL(i - 1, j - 1).len) + 1))
-          return false;
-  return true;
+          return -4;
+  return 0;
 }
 
 //Swaps two cells
@@ -849,19 +897,15 @@ int tabEdit(char *cmd, int cmdLen, tab_t *tab, cellSel_t aSel){
 //Executing the content editing commands
 int contEdit(char *cmd, tab_t *tab, cellSel_t aSel){
   int errCode = 0;
-  if(cmd == strstr(cmd, "set ")){
-    if(!setFn(cmd, tab, aSel))
-      errCode = -4;
-  }else if(cmd == strstr(cmd, "clear")){// && (cmd[5] == '\0' || cmd[5] == ';')){
-    if(!clearFn(tab, aSel))
-      errCode = -4;
-  }else if(cmd == strstr(cmd, "swap [")){
+  if(cmd == strstr(cmd, "set "))
+    errCode = setFn(cmd, tab, aSel);
+  else if(cmd == strstr(cmd, "clear"))
+    errCode = clearFn(tab, aSel);
+  else if(cmd == strstr(cmd, "swap ["))
     errCode = swapFn(cmd, tab, aSel);
-  }else
+  else
     errCode = lenSumAvgCtFn(cmd, tab, aSel);
-  if(errCode)
-    return errCode;
-  return 0;
+  return errCode;
 }
 
 /*
