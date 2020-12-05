@@ -248,6 +248,8 @@ int errFn(int errCode){
     err("Please enter a command.");
   else if(errCode == -9)
     err("The specified file does not exist.");
+  else if(errCode == -10)
+    err("One of you commands is too long. Maximum length is 1000 characters.");
   err(" The program will now exit.\n");
   return -errCode;
 }
@@ -302,18 +304,13 @@ char *getCmd(char *argv[], char *prevCmd, int cmdPlc){
 
 //If there is a selection argument, this function parses it and returns it
 int getCellSelArg(char *cmd, int argNum){
+  int i = 1, j = 1, k = 1;
+  while(j != argNum)
+    if(cmd[i++] == ',')
+      j++;
   char *selArg = malloc(1);
   if(!selArg) 
     return -4;
-  int i = 1, j = 1, k = 1;
-  while(j != argNum){
-    //if(cmd[i] == ']')
-      //return -2;
-      //TODO osetrit, ci tam nie je malo argumentov v prikaze
-    if(cmd[i] == ',')
-      j++;
-    i++;
-  }
   while(cmd[i] != ',' && cmd[i] != ']'){
     if(!rlcChar(&selArg, (k + 1))){
       free(selArg);
@@ -875,12 +872,12 @@ int contEdit(char *cmd, tab_t *tab, cellSel_t aSel){
 int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
   char *actCmd = &argv[cmdPlc][0];
   int cmdLen = getCmd(argv, actCmd, cmdPlc) - actCmd;
+  int errCode = 0;
   cellSel_t sel = {1, 1, -1, -1}, tmpSel = {1, 1, -1, -1}, actSel;
   while(cmdLen){
-    int errCode = 0;
-    //Getting next command:
     if(actCmd[cmdLen - 1] == ';')
       cmdLen--;
+    //Checking, if the command is a selection command
     int isSelRet = isSel(actCmd, tab, &sel, &tmpSel);
     if(isSelRet < 0)
       return isSelRet; //Err
@@ -898,6 +895,8 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
     }
     actCmd = getCmd(argv, actCmd, cmdPlc);
     cmdLen = getCmd(argv, actCmd, cmdPlc) - actCmd;
+    if(cmdLen > 1000)
+      return -10;
   }
   return 0;
 }
