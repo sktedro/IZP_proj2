@@ -12,7 +12,7 @@
 #define err(X)            fprintf(stderr, X)
 #define maxIntDigits      11    //Int is 4 bytes - it can only have < 11 digits
 
-#define print 0
+#define print 1
 #define deb 1
 
 typedef struct{
@@ -438,45 +438,12 @@ int getTab(char *argv[], tab_t *tab, char *del, int filePlc){
   return 0;
 }
 
-bool iterThroughCells(tab_t *tab, int *i, int *j){
-  for(; *i < tab->len - 1; ){
-    for(; ++(*j) < SROW(*i).len; ){
-      return true;
-    }
-    //printf("\n");
-    *j = 0;
-    (*i)++;
-    return true;
-  }
-  return false;
-}
-
-bool iterThroughChars(tab_t *tab, int *i, int *j, int *k){
-  if(*i > tab->len - 2)
-    return false;
-  if(*j > SROW(*i).len - 2 && *k > SCELL(*i, *j).len - 2){
-    (*i)++;
-    *j = *k = 0;
-  }
-  else if(*k > SCELL(*i, *j).len - 2){
-    (*j)++;
-    *k = 0;
-  }
-  else
-    (*k)++;
-  return true;
-}
-
 //Converts the tab to pure text - gets rid of backslashes that "are escaping a
 //character" and quotes that are not escaped
 bool parseTheTab(tab_t *tab){
-  /*
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
-      //for(int k = 0; k < SCELL(i, j).len; k++){
-    */
-  int i = 0, j = 0, k = -1;
-  while(iterThroughChars(tab, &i, &j, &k)){
+      for(int k = 0; k < SCELL(i, j).len; k++){
         if(SCONT(i, j, k) == '\\'){
           for(int l = k; l < SCELL(i, j).len - 1; l++)
             SCONT(i, j, l) = SCONT(i, j, l + 1);
@@ -490,10 +457,8 @@ bool parseTheTab(tab_t *tab){
           k--;
         }
       }
-      /*
     }
   }
-*/
   return true;
 }
 
@@ -549,14 +514,10 @@ bool removeEmptyRows(tab_t *tab){
 //escaped, were deleted. This functions inserts a backslash before characters
 //that need to be escaped and puts quotes around a cell if it's necessary
 bool prepTabForPrint(tab_t *tab, char *del){
-  /*for(int i = 0; i < tab->len - 1; i++){
+  for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
       bool makeQuoted = false;
       for(int k = 0; k < SCELL(i, j).len; k++){
-      */
-  bool makeQuoted = false;
-  int i = 0, j = 0, k = -1;
-  while(iterThroughChars(tab, &i, &j, &k)){
         for(int l = 0; del[l] && !makeQuoted; l++)
           if(SCONT(i, j, k) == del[l] || SCONT(i, j, k) == '"')
             makeQuoted = true;
@@ -569,8 +530,7 @@ bool prepTabForPrint(tab_t *tab, char *del){
           k++;
         }
       }
-      if(makeQuoted && k == SCELL(i, j).len - 1){
-        makeQuoted = false;
+      if(makeQuoted){
         if(!rlcCont(tab, i + 1, j + 1, 2))
           return false;
         for(int l = SCELL(i, j).len - 1; l > 0; l--)
@@ -578,10 +538,8 @@ bool prepTabForPrint(tab_t *tab, char *del){
         SCONT(i, j, 0) = SCONT(i, j, SCELL(i, j).len - 2) = '"';
         SCONT(i, j, SCELL(i, j).len - 1) = '\0';
       }
-      /*
     }
   }
-  */
   return true;
 }
 
@@ -590,14 +548,6 @@ void printTab(tab_t *tab, char *del, char *fileName){
   //TODO remove
   if(!print){
     (void) fileName;
-    int i = 0, j = 0, k = -1;
-    while(iterThroughChars(tab, &i, &j, &k)){
-      if(j == 0 && k == 0 && i != 0)
-        printf("\n");
-      if(k == 0 && j != 0)
-        printf("%c", del[0]);
-      printf("%c", SCONT(i, j, k));
-    /*
     for(int i = 0; i < tab->len - 1; i++){
       for(int j = 0; j < SROW(i).len; j++){
         for(int k = 0; k < SCELL(i, j).len; k++){
@@ -609,9 +559,7 @@ void printTab(tab_t *tab, char *del, char *fileName){
         }
       }
       printf("\n");
-    */
     }
-    printf("\n");
   }
   else{
   FILE *f = fopen(fileName, "w");
