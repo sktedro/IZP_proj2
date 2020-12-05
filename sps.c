@@ -13,7 +13,7 @@
 #define err(X)            fprintf(stderr, X)
 
 #define print 1
-#define deb 0
+#define deb 1
 
 typedef struct{
   int r1;
@@ -218,7 +218,6 @@ bool editCols(tab_t *tab, int rowN, int from, int by){
         SCELL(i - 1, j - 1) = SCELL(i - 1, j - 1 + (-by));
       if(!rlcCells(tab, i, newCellN))
         return false;
-
     }
   }
   return true;
@@ -261,9 +260,9 @@ int freeAndErr(tab_t *tab, int errCode, char *tmpVar[10]){
 }
 
 //Checks if a certain character is a delimiter
-bool isDel(char *c, char *del){
+bool isDel(char c, char *del){
   for(int i = 0; del[i]; i++)
-    if(*c == del[i])
+    if(c == del[i])
       return true;
   return false;
 }
@@ -343,15 +342,16 @@ int getCellSelArg(char *cmd, int argNum){
 //be parsed - same as the table. Backslashes escaping a character are removed
 //and quotes around the string as well.
 char *getCmdStr(char *cmd, int i){
-  bool isQuoted = false;
+  bool quoted = false;
   int j = 1;
   char *str = malloc(1);
   if(!str)
     return NULL;
+  str[0] = '\0';
   while(cmd[i]){
     if(cmd[i] == '"' && !isEscaped(cmd, i + 1))
-      isQuoted = !isQuoted;
-    if((cmd[i] == ']' || cmd[i] == ';') && !isQuoted && !isEscaped(cmd, i + 1))
+      quoted = !quoted;
+    if((cmd[i] == ']' || cmd[i] == ';') && !quoted && !isEscaped(cmd, i + 1))
       break;
     else{
       if(!rlcChar(&str, j + 1)){
@@ -423,7 +423,7 @@ int getTab(char *argv[], tab_t *tab, char *del, int filePlc){
         return -7;
       if(!editRows(tab, -1, 1))
         return -4;
-    }else if(!quoted && isDel(&tmpC, del) 
+    }else if(isDel(tmpC, del) && !quoted
         && !isEscaped(CONT(rowN - 1, cellN - 1), charN)){
       cellN++;
       charN = 1;
@@ -704,7 +704,7 @@ bool clearFn(tab_t *tab, cellSel_t sel){
 
 //Swaps two cells
 int swapFn(char *cmd, tab_t *tab, cellSel_t aSel){
-  cellSel_t swpSel;
+  cellSel_t swpSel = {1, 1, -1, -1};
   int isSelRet = isSel(cmd + strlen("swap "), tab, &swpSel, NULL);
   if(isSelRet < 0)
     return isSelRet;
@@ -734,7 +734,7 @@ int lenSumAvgCtFn(char *cmd, tab_t *tab, cellSel_t aSel){
     cmdParsed = 4;
   else
     return 0;
-  cellSel_t cmdSel;
+  cellSel_t cmdSel = {1, 1, -1, -1};
   double val = 0, count = 0;
   for(int i = aSel.r1; i <= aSel.r2; i++){
     for(int j = aSel.c1; j <= aSel.c2; j++){
@@ -894,6 +894,7 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
       errCode = contEdit(actCmd, tab, actSel);
       if(errCode)
         return errCode;
+      addCols(tab);
     }
     actCmd = getCmd(argv, actCmd, cmdPlc);
     cmdLen = getCmd(argv, actCmd, cmdPlc) - actCmd;
@@ -933,38 +934,38 @@ int main(int argc, char *argv[]){
   errCode = getTab(argv, &tab, del, filePlc);
   if(errCode) 
     return freeAndErr(&tab, errCode, tmpVar);
-  printf("Get the tab\n");
+  //printf("Get the tab\n");
   checkTheTab(&tab);
 
   if(!addCols(&tab)) 
     return freeAndErr(&tab, -4, tmpVar);
-  printf("Add cols\n");
+  //printf("Add cols\n");
   checkTheTab(&tab);
   
   if(!parseTheTab(&tab))
     return freeAndErr(&tab, -4, tmpVar);
-  printf("Parse the tab\n");
+  //printf("Parse the tab\n");
   checkTheTab(&tab);
 
   errCode = execCmds(argv, cmdPlc, &tab, tmpVar);
   if(errCode) 
     return freeAndErr(&tab, errCode, tmpVar);
-  printf("Exec cmds\n");
+  //printf("Exec cmds\n");
   checkTheTab(&tab);
 
   if(!addCols(&tab)) 
     return freeAndErr(&tab, -4, tmpVar);
-  printf("Add columns\n");
+  //printf("Add columns\n");
   checkTheTab(&tab);
 
   if(!removeEmptyCols(&tab) || !removeEmptyRows(&tab))
     return freeAndErr(&tab, -4, tmpVar);
-  printf("Remove empty columns\n");
+  //printf("Remove empty columns\n");
   checkTheTab(&tab);
 
   if(!prepTabForPrint(&tab, del))
     return freeAndErr(&tab, -4, tmpVar);
-  printf("Prep tab for print\n");
+  //printf("Prep tab for print\n");
   checkTheTab(&tab);
 
 

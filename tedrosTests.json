@@ -1,0 +1,202 @@
+[
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1,3,3];acol"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[,];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[,1];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1,];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1,1,];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[_,_,1,1];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[_,_,-,-];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[0,1,1,1];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,0,1,1];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1,0,1];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1,1,0];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[-10,1];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1,2,2,3];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "find a;set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set ;"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1]set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[a,b];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,1,a,b];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set \"\";def _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;inc _0;use _0"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[_,_];[set];[1,1];[_];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set a;avg [1,2]"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set a;sum [1,2]"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set \"\";len [1,2]"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,2];irow;arow;dcol;[5,5];drow;acol;acol;[15,15];set a;icol;irow"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set \"\";clear"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set \\\""
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[15,15];swap [1,1]"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set a;def _0;inc _0;[1,2];use _0"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "find a;def _0;[_,_];drow;use _0"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[2,2];find \"\";set there"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[3,3,1,1];set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set ;;;;;"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set ;"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "set ;;"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,2]set a"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,2]set ;;"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[1,3] set"
+    },
+    {
+      "name": "tedro's lot",
+      "input": "tab1",
+      "cmds": "[2,2][1,2];set a"
+    }
+]
