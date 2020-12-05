@@ -1,2 +1,2 @@
-all: spsAlpha.c
-	gcc -std=c99 -Wall -Wextra spsAlpha.c -o spsAlpha -g
+all: sps.c
+	gcc -std=c99 -Wall -Wextra sps.c -o sps -g

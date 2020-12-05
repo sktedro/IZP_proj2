@@ -1,4 +1,4 @@
   while true; do \
-    inotifywait -qr -e modify ./spsAlpha.c; \
+    inotifywait -qr -e modify ./sps.c; \
     make; \
   done

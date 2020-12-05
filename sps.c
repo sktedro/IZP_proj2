@@ -875,6 +875,8 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
   int errCode = 0;
   cellSel_t sel = {1, 1, -1, -1}, tmpSel = {1, 1, -1, -1}, actSel;
   while(cmdLen){
+    if(cmdLen > 1000)
+      return -10;
     if(actCmd[cmdLen - 1] == ';')
       cmdLen--;
     //Checking, if the command is a selection command
@@ -895,8 +897,6 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
     }
     actCmd = getCmd(argv, actCmd, cmdPlc);
     cmdLen = getCmd(argv, actCmd, cmdPlc) - actCmd;
-    if(cmdLen > 1000)
-      return -10;
   }
   return 0;
 }
