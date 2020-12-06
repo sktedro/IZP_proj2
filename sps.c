@@ -2,7 +2,7 @@
 ** xskalo01, Patrik Skalos
 ** 4.12.2020
 ** 
-** I recommend reading error codes in errFn at line TODO
+** I recommend reading error codes in errFn
 ** Note: invalid commands are ignored and error is not returned
 */
 
