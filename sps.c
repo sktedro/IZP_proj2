@@ -20,9 +20,6 @@
 #define err(X)            fprintf(stderr, X)
 #define maxNumLen         32    //No number will have more digits than 32...
 
-#define print 1
-#define deb 1
-
 //row1, col1, row2 and col2. r1 and c1 can be zero or negative if '-' or '_'
 //was entered. These values are then converted to actual row/col numbers by
 //parseSel function 
@@ -50,18 +47,6 @@ typedef struct{
   row_t *row;
   int len;
 } tab_t;
-
-//TODO remove this
-void checkTheTab(tab_t *tab){
-  for(int i = 0; i < tab->len - 1; i++){
-    for(int j = 0; j < SROW(i).len; j++){
-      if(SCONT(i, j, SCELL(i, j).len - 1) != '\0')
-        printf("<no null byte at %d, %d>\n", i+1, j+1);
-      if(!CONT(i, j))
-        printf("<Cell pointer is NULL %d, %d>\n", i+1, j+1);
-    }
-  }
-}
 
 /*
 ** Free and allocation functions
@@ -287,10 +272,6 @@ bool isDel(char c, char *del){
 //Checks, if a character is escaped or not (if there is odd number of
 //backslashes before the character)
 bool isEscaped(char *str, int charPlc){
-  /*
-  if(!str)
-    return false;
-    */
   int i = 1;
   while((charPlc - i) > 0 && str[charPlc - i - 1] == '\\'){i++;}
   return ((i - 1) % 2 != 0) ? true : false;
@@ -333,7 +314,7 @@ int getCellSelArg(char *cmd, int argNum){
   int arg = strtol(selArg, &tolPtr, 10);
   if(!strcmp(selArg, "_")){
     free(selArg);
-    return 0; //Whole row/column was selected
+    return 0;  //Whole row/column was selected
   }else if(!strcmp(selArg, "-")){
     free(selArg);
     return -2; //Last row/column was selected
@@ -562,39 +543,16 @@ bool prepTabForPrint(tab_t *tab, char *del){
 
 //Prints the cells of the table one by one
 void printTab(tab_t *tab, char *del, char *fileName){
-  //TODO remove
-  if(!print){
-    (void) fileName;
-    for(int i = 0; i < tab->len - 1; i++){
-      for(int j = 0; j < SROW(i).len; j++){
-        for(int k = 0; k < SCELL(i, j).len; k++){
-          printf("%c", SCONT(i, j, k));
-        }
-        if(j+1 != SROW(i).len){
-          //printf("\t%c\t", del[0]);
-          printf("%c", del[0]);
-        }
-      }
-      printf("\n");
-    }
-  }
-  else{
   FILE *f = fopen(fileName, "w");
   for(int i = 0; i < tab->len - 1; i++){
     for(int j = 0; j < SROW(i).len; j++){
       fputs(CONT(i, j), f);
-      /*
-      for(int k = 0; k < SCELL(i, j).len - 1; k++)
-        fputc(SCONT(i, j, k), f);
-        */
-      if(j+1 != SROW(i).len){
+      if(j+1 != SROW(i).len)
         fputc(del[0], f);
-      }
     }
     fputc('\n', f);
   }
   fclose(f);
-  }
 }
 
 /*
@@ -895,7 +853,7 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
     //Checking, if the command is a selection command
     int isSelRet = isSel(actCmd, tab, &sel, &tmpSel);
     if(isSelRet < 0)
-      return isSelRet; //Err
+      return isSelRet;
     else if(isSelRet == 0){
       //If the command is not a selection command, execute it
       parseSel(tab, sel, &actSel);
@@ -939,50 +897,10 @@ int main(int argc, char *argv[]){
   }
   if(argv[cmdPlc][0] == '\0')
     return errFn(-8); //No commands entered
+
+  //Allocate space for temporary variables
   if(!mlcTmpVars(tmpVar)) 
     return errFn(-4); //Code -4 means malloc or realloc was unsuccessful
-
-  if(deb){
-  errCode = getTab(argv, &tab, del, filePlc);
-  if(errCode) 
-    return freeAndErr(&tab, errCode, tmpVar);
-  //printf("Get the tab\n");
-  checkTheTab(&tab);
-
-  if(!addCols(&tab)) 
-    return freeAndErr(&tab, -4, tmpVar);
-  //printf("Add cols\n");
-  checkTheTab(&tab);
-  
-  if(!parseTheTab(&tab))
-    return freeAndErr(&tab, -4, tmpVar);
-  //printf("Parse the tab\n");
-  checkTheTab(&tab);
-
-  errCode = execCmds(argv, cmdPlc, &tab, tmpVar);
-  if(errCode) 
-    return freeAndErr(&tab, errCode, tmpVar);
-  //printf("Exec cmds\n");
-  checkTheTab(&tab);
-
-  if(!addCols(&tab)) 
-    return freeAndErr(&tab, -4, tmpVar);
-  //printf("Add columns\n");
-  checkTheTab(&tab);
-
-  if(!removeEmptyCols(&tab) || !removeEmptyRows(&tab))
-    return freeAndErr(&tab, -4, tmpVar);
-  //printf("Remove empty columns\n");
-  checkTheTab(&tab);
-
-  if(!prepTabForPrint(&tab, del))
-    return freeAndErr(&tab, -4, tmpVar);
-  //printf("Prep tab for print\n");
-  checkTheTab(&tab);
-
-
-  }else{
-
   //Load the whole table
   errCode = getTab(argv, &tab, del, filePlc);
   if(errCode) 
@@ -1007,8 +925,6 @@ int main(int argc, char *argv[]){
   //contains delim or a escaped quote, put the cell in quotes
   if(!prepTabForPrint(&tab, del))
     return freeAndErr(&tab, -4, tmpVar);
-  }
-
   //Overwrite the file with the table from memory
   printTab(&tab, del, argv[cmdPlc + 1]);
   //Free all of the allocated memory
