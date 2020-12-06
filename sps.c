@@ -879,15 +879,14 @@ int contEdit(char *cmd, tab_t *tab, cSel_t aSel){
 }
 
 /*
-** Main "Executing the commands" function
+** Main "Executing the commands" function. Reads the command and executes it
 */
 
-//Reads commands and executes them
 int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
-  char *actCmd = &argv[cmdPlc][0];
-  int cmdLen = getCmd(argv, actCmd, cmdPlc) - actCmd;
   int errCode = 0;
   cSel_t sel = {1, 1, -1, -1}, tmpSel = {1, 1, -1, -1}, actSel;
+  char *actCmd = &argv[cmdPlc][0];
+  int cmdLen = getCmd(argv, actCmd, cmdPlc) - actCmd;
   while(cmdLen){
     if(cmdLen > 1000)
       return -10;
@@ -922,28 +921,26 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
 */
 
 int main(int argc, char *argv[]){
-  int errCode = 0;
-  char *del = " ";
-  int cmdPlc = 1, filePlc = 2;
+  char *del = " ", *tmpVar[10] = {0};
+  int errCode = 0, cmdPlc = 1, filePlc = 2;
+  tab_t tab;
   if(argc < 3){
-    return errFn(-1);
+    return errFn(-1); //Less than two arguments
   }else if(argc == 3 && !strcmp(argv[1], "-d")){
-    return errFn(-3);
+    return errFn(-3); //Two arguments but '-d' is present
   }else if(argc == 4){
-    return errFn(-3);
+    return errFn(-3); //Three arguments
   }else if(argc > 5)
-    return errFn(-2);
+    return errFn(-2); //Too many arguments
   if(!strcmp(argv[1], "-d")){
     del = argv[2];
     cmdPlc = 3;
     filePlc = 4;
   }
   if(argv[cmdPlc][0] == '\0')
-    return errFn(-8);
-  char *tmpVar[10] = {0};
+    return errFn(-8); //No commands entered
   if(!mlcTmpVars(tmpVar)) 
-    return errFn(-4);
-  tab_t tab;
+    return errFn(-4); //Code -4 means malloc or realloc was unsuccessful
 
   if(deb){
   errCode = getTab(argv, &tab, del, filePlc);
@@ -986,25 +983,35 @@ int main(int argc, char *argv[]){
 
   }else{
 
+  //Load the whole table
   errCode = getTab(argv, &tab, del, filePlc);
   if(errCode) 
     return freeAndErr(&tab, errCode, tmpVar);
+  //Remove backslashes and quotes if they are not escaped
   if(!parseTheTab(&tab))
     return freeAndErr(&tab, -4, tmpVar);
+  //Add columns, so every row has the same amount of them
   if(!addCols(&tab)) 
     return freeAndErr(&tab, -4, tmpVar);
+  //Execute all of the entered commands
   errCode = execCmds(argv, cmdPlc, &tab, tmpVar);
   if(errCode) 
     return freeAndErr(&tab, errCode, tmpVar);
+  //Again, add columns, so every row has the same amount of them
   if(!addCols(&tab)) 
     return freeAndErr(&tab, -4, tmpVar);
+  //Remove all empty last columns and last rows that are totally empty
   if(!removeEmptyCols(&tab) || !removeEmptyRows(&tab))
     return freeAndErr(&tab, -4, tmpVar);
+  //Add backslashes before backslashes and quotes to escape them. If a cell
+  //contains delim or a escaped quote, put the cell in quotes
   if(!prepTabForPrint(&tab, del))
     return freeAndErr(&tab, -4, tmpVar);
   }
 
+  //Overwrite the file with the table from memory
   printTab(&tab, del, argv[cmdPlc + 1]);
+  //Free all of the allocated memory
   freeTab(&tab, tmpVar);
   return 0;
 }
