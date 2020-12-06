@@ -611,7 +611,8 @@ void getMinOrMaxFn(tab_t *tab, cSel_t *sel, cSel_t aSel, bool min){
     for(int j = aSel.c1; j <= aSel.c2; j++){
       char *todPtr = NULL;
       double tmp = strtod(CONT(i - 1, j - 1), &todPtr);
-      if(!todPtr[0] && (!init || (min && tmp < val) || (!min && tmp > val))){
+      if(!todPtr[0] && SCONT(i - 1, j - 1, 0)
+          && (!init || (min && tmp < val) || (!min && tmp > val))){
         init = true;
         val = tmp;
         nextr1 = i;
@@ -646,7 +647,7 @@ bool findFn(char *cmd, tab_t *tab, cSel_t *sel, cSel_t aSel){
   return 0;
 }
 
-//Checks, if the actual command is a selection command. If so, it parses it and
+//Checks, if a command is a selection command. If so, it parses it and
 //writes it into the "sel" structure, which stands for "selection command"
 int isSel(char *cmd, tab_t *tab, cSel_t *sel, cSel_t *tmpSel){
   cSel_t actSel;
@@ -719,7 +720,7 @@ int clearFn(tab_t *tab, cSel_t sel){
   return 0;
 }
 
-//Swaps two cells
+//Swaps pointers of two cells. Simple enough 
 int swapFn(char *cmd, tab_t *tab, cSel_t aSel){
   cSel_t swpSel = {1, 1, -1, -1};
   int isSelRet = isSel(cmd + strlen("swap "), tab, &swpSel, NULL);
@@ -798,9 +799,7 @@ int lenSumAvgCtFn(char *cmd, tab_t *tab, cSel_t aSel){
 */
 
 //Working with user's temporary variables
-bool tmpVarFn(char *cmd, int cmdLen, char *tmpVar[10], cSel_t aSel, tab_t *tab){
-  if(cmdLen < 6) 
-    return true;
+bool tmpVarFn(char *cmd, char *tmpVar[10], cSel_t aSel, tab_t *tab){
   if((cmd[6] == '\0' || cmd[6] == ';') && cmd[5] >= '0' && cmd[5] <= '9'){
     int var = cmd[5] - '0';
     if(strstr(cmd, "def _") == cmd){
@@ -901,7 +900,7 @@ int execCmds(char *argv[], int cmdPlc, tab_t *tab, char *tmpVar[10]){
     else if(isSelRet == 0){
       //If the command is not a selection command, execute it
       parseSel(tab, sel, &actSel);
-      if(!tmpVarFn(actCmd, cmdLen, tmpVar, actSel, tab))
+      if(!tmpVarFn(actCmd, tmpVar, actSel, tab))
         return -4;
       errCode = tabEdit(actCmd, cmdLen, tab, actSel);
       if(errCode)
