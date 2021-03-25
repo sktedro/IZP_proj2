@@ -922,7 +922,7 @@ int main(int argc, char *argv[]){
   if(!removeEmptyCols(&tab) || !removeEmptyRows(&tab))
     return freeAndErr(&tab, -4, tmpVar);
   //Add backslashes before backslashes and quotes to escape them. If a cell
-  //contains delim or a escaped quote, put the cell in quotes
+  //contains a delim or a escaped quote, put the cell in quotes
   if(!prepTabForPrint(&tab, del))
     return freeAndErr(&tab, -4, tmpVar);
   //Overwrite the file with the table from memory
